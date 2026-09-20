@@ -43,7 +43,7 @@ hashes your copy (it stays on your machine) and tells you whether the record vou
 
 ## In a browser
 
-Open `web/index.html` — a single page with no dependencies. Paste the record's link, or paste the two documents by hand, and it checks the signature with WebCrypto; drop a file to compare it with the record. Credentials need the command line (RDF canonicalisation is a library, not a page).
+Open **https://mrbriit.github.io/wizzad-record/web/** (or `web/index.html` locally) — a single page with no dependencies. Paste the record's link, or paste the two documents by hand, and it checks the signature with WebCrypto; drop a file to compare it with the record. Credentials need the command line (RDF canonicalisation is a library, not a page).
 
 ## As a library
 
