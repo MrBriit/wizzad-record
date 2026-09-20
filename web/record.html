@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What a Wizzad record is</title>
+<meta name="description" content="What a Wizzad study record tells you, what it does not, and what it means when a check says valid — in plain words, for the person reading one.">
+<style>
+  :root { color-scheme: light dark; --bg:#ffffff; --ink:#1d1d1f; --t2:#6e6e73; --t3:#86868b; --fill:#f5f5f7; --sep:rgba(0,0,0,.08); --ok:#1e7a3c; --ok-bg:#e4f3e9; --btn:#1d1d1f; --btn-text:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e0d1b; --ink:#f5f5f7; --t2:#a1a1a6; --t3:#86868b; --fill:#1c1c1e; --sep:rgba(255,255,255,.12); --ok:#7edb98; --ok-bg:#132c25; --btn:#f5f5f7; --btn-text:#1d1d1f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font-size: 30px; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 10px; text-wrap: balance; }
+  h2 { font-size: 19px; margin: 36px 0 8px; letter-spacing: -.01em; }
+  p { margin: 0 0 14px; max-width: 62ch; }
+  p.lead { color: var(--t2); font-size: 17px; margin-bottom: 8px; }
+  ul { padding-left: 20px; margin: 0 0 14px; max-width: 62ch; } li { margin: 4px 0; }
+  .card { background: var(--fill); border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
+  .card.ok { background: var(--ok-bg); color: var(--ok); }
+  .card p:last-child { margin-bottom: 0; }
+  .quiet { color: var(--t3); font-size: 14px; }
+  a { color: inherit; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top: 8px; }
+  .btn { display:inline-block; border-radius:999px; padding: 9px 16px; font-weight:600; font-size:14px; background:var(--btn); color:var(--btn-text); text-decoration:none; }
+  .btn.quiet { background: var(--fill); color: var(--ink); box-shadow: inset 0 0 0 1px var(--sep); }
+  dl { display:grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dt { font-weight: 600; } dd { margin: 0; color: var(--t2); }
+</style>
+</head>
+<body>
+<main>
+  <h1>What a Wizzad record is</h1>
+  <p class="lead">Someone has shown you a link to their Wizzad record, or a credential from it. This page says what you are looking at, what it can tell you, and what it cannot.</p>
+
+  <h2>In one sentence</h2>
+  <p>A Wizzad record is a signed account of what a student did in Wizzad: which questions were put to them about a piece of their own work, how their answers were checked, and what was recorded while they answered. Every attempt is kept, in order; a later attempt never replaces an earlier one.</p>
+
+  <h2>How a record comes to exist</h2>
+  <p>A student writes a piece — an essay, a lab write-up, an application essay — in Wizzad, or brings one in as a file. Then they <strong>defend</strong> it: a timed session in which Wizzad puts questions to them that are built from the piece itself, with the piece out of sight. Some questions have an answer that is taken straight from the piece and compared automatically; some ask for an explanation in the student's own words, which two separate AI graders read against a marking guide; some ask about a change the student made while writing, which only they would know. The results are counted and fixed at the time, and the whole thing is signed.</p>
+  <p>A reader of the record can also ask the student one question back, ask them to sit a short fresh check on a piece, or set them a new task to make in Wizzad and defend. Whatever happens appears on the record, signed on its own, and only then.</p>
+
+  <h2>What it tells you</h2>
+  <ul>
+    <li>How many questions were asked about each piece, and how many were answered correctly or explained fully — with the questions and answers behind the numbers, when the student chose to include them.</li>
+    <li>When each attempt happened, how long it took, and whether the student left the window or pasted text during it (counted, never policed).</li>
+    <li>For a piece written in Wizzad, how it was made: how many sittings, how much was typed, pasted, or written with Wizzad's assistant.</li>
+    <li>For a piece brought in as a file, the file's fingerprint — so if you hold a copy, you can check it is the same file.</li>
+    <li>How the student was identified in each session: a signed-in account, or a passkey at the start.</li>
+  </ul>
+
+  <h2>What it does not tell you</h2>
+  <div class="card">
+    <p>It does <strong>not</strong> establish who wrote any piece, whether AI was used in writing it, or who the student is. Nothing in it is a verdict, a comparison with other students, or an examination result. The name on a record is the name the student typed; Wizzad has not checked it.</p>
+  </div>
+  <p>Read the record for what it is: evidence that whoever sat that session, at that time, could answer for that piece of writing without it in front of them — no more, and no less.</p>
+
+  <h2>What "valid" means</h2>
+  <div class="card ok"><p><strong>Valid</strong> means two things, and only two: the record's contents are exactly what Wizzad signed — nothing was changed afterwards — and the signature was made with a key Wizzad publishes as its own.</p></div>
+  <p>It does not mean the person showing you the record is the student it describes; the record's own identity lines say how far that goes. And it does not mean the claims are true in any larger sense — only that Wizzad's software recorded them at the time.</p>
+
+  <h2>Three ways to check a record</h2>
+  <dl>
+    <dt>On Wizzad</dt><dd>Every record page has a <em>Check this record</em> button. It takes a few seconds and needs no account.</dd>
+    <dt>Here, in your browser</dt><dd>Paste the record's link on <a href="./">the check page</a>. It fetches the record and Wizzad's public key and checks the signature on your machine, with none of Wizzad's code involved.</dd>
+    <dt>On your own computer</dt><dd><code>npx wizzad-record check &lt;link&gt;</code> does the same from the command line, and can also check a credential or a file you hold.</dd>
+  </dl>
+
+  <h2>Credentials</h2>
+  <p>When a reader sets a student a task and the student finishes and defends it, Wizzad issues an <strong>Open Badges 3.0 credential</strong> for it — the same open format universities and employers use for digital badges. It names the task as it was set, the counts from the defense, and how the piece was made, and it is signed like the record. Verifiers that support Open Badges 3.0 can check it, and so can the command line above.</p>
+
+  <h2>Who made this page</h2>
+  <p class="quiet">This checker is published by Wizzad as open source, on purpose: a record you can only check by asking Wizzad would be worth less. Engineers can read the exact profile — the signing, the keys, the credential format — in <a href="https://github.com/MrBriit/wizzad-record/blob/main/PROFILE.md">the technical profile</a>.</p>
+  <div class="row"><a class="btn" href="./">Check a record</a><a class="btn quiet" href="https://github.com/MrBriit/wizzad-record">The source</a></div>
+</main>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 Check a [Wizzad](https://wizzad.ai) study record — its signature, its Open Badges 3.0 credential, and the files it names — **without trusting Wizzad**. No Wizzad code, no Wizzad server in the loop: the record and the public key are documents anyone can download, and this checks them with standard cryptography.
 
-Read [PROFILE.md](PROFILE.md) first: it says what a record is, what *valid* means, and what it does not mean.
+If you are the person reading a record, start with **[What a Wizzad record is](https://mrbriit.github.io/wizzad-record/web/record.html)** — plain words on what it tells you, what it does not, and what *valid* means. Engineers: [PROFILE.md](PROFILE.md) is the exact profile.
 
 ## Check a record
 
