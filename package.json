@@ -1,0 +1,23 @@
+{
+  "name": "wizzad-record",
+  "version": "0.1.0",
+  "description": "Check a Wizzad study record, its Open Badges 3.0 credential, and the files it names — without trusting Wizzad.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "wizzad-record": "bin/wizzad-record.js" },
+  "exports": {
+    ".": "./src/index.js",
+    "./record": "./src/record.js",
+    "./credential": "./src/credential.js",
+    "./keys": "./src/keys.js",
+    "./files": "./src/files.js"
+  },
+  "files": ["bin", "src", "contexts", "web", "PROFILE.md", "README.md"],
+  "engines": { "node": ">=18.17" },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "jsonld": "^9.0.0"
+  }
+}

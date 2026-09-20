@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check a Wizzad record</title>
+<meta name="description" content="Verify a Wizzad study record's signature and the files it names, in your browser, without trusting Wizzad.">
+<style>
+  :root { color-scheme: light dark; --bg:#ffffff; --ink:#1d1d1f; --t2:#6e6e73; --t3:#86868b; --fill:#f5f5f7; --sep:rgba(0,0,0,.08); --ok:#1e7a3c; --ok-bg:#e4f3e9; --bad:#b3261e; --bad-bg:#fbe9e7; --btn:#1d1d1f; --btn-text:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0e0d1b; --ink:#f5f5f7; --t2:#a1a1a6; --t3:#86868b; --fill:#1c1c1e; --sep:rgba(255,255,255,.12); --ok:#7edb98; --ok-bg:#132c25; --bad:#ff8a80; --bad-bg:#3a1a17; --btn:#f5f5f7; --btn-text:#1d1d1f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 8px; text-wrap: balance; }
+  h2 { font-size: 17px; margin: 32px 0 8px; }
+  p.lead { color: var(--t2); margin: 0 0 24px; max-width: 60ch; }
+  label { display:block; font-size: 13px; color: var(--t2); margin: 14px 0 6px; }
+  input[type=url], textarea { width:100%; border: 0; border-radius: 10px; background: var(--fill); color: var(--ink); padding: 10px 12px; font: inherit; box-shadow: inset 0 0 0 1px var(--sep); }
+  textarea { min-height: 96px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  button { border:0; border-radius: 999px; padding: 9px 16px; font: inherit; font-weight: 600; font-size: 14px; background: var(--btn); color: var(--btn-text); cursor: pointer; }
+  button.quiet { background: var(--fill); color: var(--ink); box-shadow: inset 0 0 0 1px var(--sep); }
+  .row { display:flex; gap: 10px; align-items:center; flex-wrap: wrap; margin-top: 12px; }
+  .result { margin-top: 18px; border-radius: 14px; padding: 14px 16px; background: var(--fill); }
+  .result.ok { background: var(--ok-bg); color: var(--ok); }
+  .result.bad { background: var(--bad-bg); color: var(--bad); }
+  .result .big { font-weight: 700; font-size: 17px; }
+  dl { display:grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0 0; font-size: 13px; }
+  dt { color: var(--t3); } dd { margin: 0; word-break: break-all; font-variant-numeric: tabular-nums; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .note { color: var(--t3); font-size: 13px; }
+  a { color: inherit; }
+  .drop { border: 1.5px dashed var(--sep); border-radius: 12px; padding: 18px; text-align:center; color: var(--t2); margin-top: 8px; }
+  .drop.over { border-color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Check a Wizzad record</h1>
+  <p class="lead">A Wizzad study record is signed with Ed25519 over its canonical JSON, and the public key is published beside it. This page checks the signature in your browser — nothing is sent anywhere, and nothing here depends on Wizzad's code being right. Read <a href="../PROFILE.md">what the record is</a> before you rely on one.</p>
+
+  <h2>1 · The record</h2>
+  <label for="link">Paste the record's link and fetch its documents (from the link's own origin)</label>
+  <input id="link" type="url" placeholder="https://wizzad.ai/proof/…" autocomplete="off" spellcheck="false">
+  <div class="row"><button id="fetch">Fetch and check</button><span class="note">or paste the two documents by hand:</span></div>
+  <label for="record">The signed record — the <code>/api/proof/shared/&lt;token&gt;</code> document</label>
+  <textarea id="record" placeholder='{"payload": …, "signature": "…", "keyId": "…"}'></textarea>
+  <label for="keys">The published keys — <code>/api/proof/keys</code>, or the issuer's <code>did.json</code></label>
+  <textarea id="keys" placeholder='{"keys": [{"keyId": "…", "publicKey": "…"}]}'></textarea>
+  <div class="row"><button id="check" class="quiet">Check what is pasted</button></div>
+  <div id="out" class="result" hidden></div>
+
+  <h2>2 · A file you hold</h2>
+  <p class="note">If the student brought a piece in as a file, or the record names a recording, the record carries the file's SHA-256. Hash your copy here (it stays on your machine) and see whether it is on the record.</p>
+  <div id="drop" class="drop">Drop a file here, or <label style="display:inline;color:inherit;text-decoration:underline;cursor:pointer;margin:0">choose one<input id="file" type="file" hidden></label></div>
+  <div id="fileout" class="result" hidden></div>
+
+  <h2>3 · An Open Badges credential</h2>
+  <p class="note">A task's credential carries a Data Integrity proof (<code>eddsa-rdfc-2022</code>), which needs RDF canonicalisation to check. That is a larger library than belongs in one page, so check credentials with the command line: <code>npx wizzad-record credential credential.json --keys did.json</code>.</p>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const SPKI = new Uint8Array([0x30,0x2a,0x30,0x05,0x06,0x03,0x2b,0x65,0x70,0x03,0x21,0x00]);
+  const enc = new TextEncoder();
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const b64 = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+  const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const fromB58 = (s) => { let n = 0n; for (const ch of s) { const i = B58.indexOf(ch); if (i < 0) throw new Error('not base58'); n = n * 58n + BigInt(i); } const out = []; while (n > 0n) { out.unshift(Number(n % 256n)); n /= 256n; } let z = 0; for (const ch of s) { if (ch === '1') z++; else break; } return new Uint8Array([...new Array(z).fill(0), ...out]); };
+  const canonical = (v) => { const visit = (x) => (x === null || typeof x !== 'object') ? x : Array.isArray(x) ? x.map(visit) : Object.fromEntries(Object.keys(x).sort().map((k) => [k, visit(x[k])])); return JSON.stringify(visit(v)); };
+  const raw = (k) => { // one published key, in any of its forms → 32 bytes
+    if (typeof k === 'string') { if (k.startsWith('z')) return multikey(k); return spki(b64(k.replace(/-----[^-]+-----/g, '').replace(/\s+/g, ''))); }
+    if (k.publicKeyMultibase) return multikey(k.publicKeyMultibase); if (k.publicKey) return spki(b64(k.publicKey)); if (k.publicKeyPem) return raw(k.publicKeyPem); throw new Error('unrecognised key');
+  };
+  const spki = (der) => { if (der.length !== 44 || SPKI.some((b, i) => der[i] !== b)) throw new Error('not an Ed25519 SPKI key'); return der.slice(12); };
+  const multikey = (s) => { const b = fromB58(s.slice(1)); if (b.length !== 34 || b[0] !== 0xed || b[1] !== 0x01) throw new Error('not an Ed25519 Multikey'); return b.slice(2); };
+  const keyId = async (r) => hex(await crypto.subtle.digest('SHA-256', new Uint8Array([...SPKI, ...r]))).slice(0, 16);
+  const ring = async (doc) => { const entries = Array.isArray(doc) ? doc : doc.keys || doc.verificationMethod || [doc]; const m = new Map(); for (const e of entries) { const r = raw(e); const id = await keyId(r); const claimed = e.keyId ?? (typeof e.id === 'string' ? e.id.split('#').pop() : undefined); if (claimed !== undefined && claimed !== id) throw new Error(`key ${claimed} does not match its bytes`); m.set(id, r); } return m; };
+  const sigOf = (rec) => typeof rec.signature === 'object' ? rec.signature : { keyId: rec.keyId, signature: rec.signature, algorithm: rec.algorithm || 'Ed25519' };
+  let lastPayload = null;
+  const show = (el, ok, big, rows) => { el.hidden = false; el.className = 'result ' + (ok ? 'ok' : 'bad'); el.innerHTML = `<div class="big">${big}</div>` + (rows ? `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''); };
+  async function verify(rec, keysDoc) {
+    const sig = sigOf(rec); const c = canonical(rec.payload); const digest = hex(await crypto.subtle.digest('SHA-256', enc.encode(c)));
+    const keys = await ring(keysDoc); const r = keys.get(sig.keyId);
+    if (!r) return { ok: false, big: 'NOT VALID — the record names a key that is not among the published keys', rows: [['key', sig.keyId || '(none)'], ['digest', digest]] };
+    const key = await crypto.subtle.importKey('spki', new Uint8Array([...SPKI, ...r]), { name: 'Ed25519' }, false, ['verify']);
+    const ok = await crypto.subtle.verify({ name: 'Ed25519' }, key, b64(sig.signature), enc.encode(c));
+    lastPayload = ok ? rec.payload : null;
+    const p = rec.payload || {};
+    return { ok, big: ok ? 'VALID — the signature checks against the published key' : 'NOT VALID — the payload or the signature was changed after signing', rows: [['key', sig.keyId + ' · published'], ['digest', 'sha256(canonical payload) = ' + digest], ...(p.issuedAt ? [['issued', p.issuedAt]] : []), ...(p.recordId ? [['record', p.recordId]] : [])] };
+  }
+  async function run(rec, keysDoc) { try { const r = await verify(rec, keysDoc); show($('out'), r.ok, r.big, r.rows); } catch (e) { show($('out'), false, 'Could not check: ' + e.message); } }
+  $('check').onclick = () => { try { run(JSON.parse($('record').value), JSON.parse($('keys').value)); } catch (e) { show($('out'), false, 'Paste both documents as JSON: ' + e.message); } };
+  $('fetch').onclick = async () => {
+    try {
+      const u = new URL($('link').value.trim()); const m = u.pathname.match(/\/proof\/([A-Za-z0-9_-]+)\/?$/); if (!m) throw new Error('not a record link (…/proof/<token>)');
+      const [rec, keys] = await Promise.all([fetch(`${u.origin}/api/proof/shared/${m[1]}`).then((r) => r.json()), fetch(`${u.origin}/api/proof/keys`).then((r) => r.json())]);
+      $('record').value = JSON.stringify(rec, null, 2); $('keys').value = JSON.stringify(keys, null, 2); run(rec, keys);
+    } catch (e) { show($('out'), false, 'Could not fetch: ' + e.message + '. Open the two documents in your browser and paste them below instead.'); }
+  };
+  const fingerprints = (v, path = '') => { const out = []; const walk = (x, p) => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach((y, i) => walk(y, `${p}[${i}]`)); for (const [k, y] of Object.entries(x)) { if (k === 'sha256' && typeof y === 'string') out.push({ path: p, sha256: y.toLowerCase() }); else walk(y, p ? `${p}.${k}` : k); } }; walk(v, path); return out; };
+  async function fileCheck(f) {
+    const h = hex(await crypto.subtle.digest('SHA-256', await f.arrayBuffer()));
+    if (!lastPayload) return show($('fileout'), false, 'Check a record first (step 1), then this file is compared with it.', [['sha256', h]]);
+    const hits = fingerprints(lastPayload).filter((x) => x.sha256 === h);
+    show($('fileout'), hits.length > 0, hits.length ? `ON RECORD — this file is the one at ${hits.map((x) => x.path).join(', ')}` : 'NOT ON RECORD — the record does not vouch for this file', [['file', f.name + ' · ' + f.size + ' bytes'], ['sha256', h]]);
+  }
+  $('file').onchange = (e) => e.target.files[0] && fileCheck(e.target.files[0]);
+  const drop = $('drop'); drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); }; drop.ondragleave = () => drop.classList.remove('over'); drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); e.dataTransfer.files[0] && fileCheck(e.dataTransfer.files[0]); };
+})();
+</script>
+</body>
+</html>
