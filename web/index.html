@@ -97,7 +97,11 @@
       $('record').value = JSON.stringify(rec, null, 2); $('keys').value = JSON.stringify(keys, null, 2); run(rec, keys);
     } catch (e) { show($('out'), false, 'Could not fetch: ' + e.message + '. Open the two documents in your browser and paste them below instead.'); }
   };
-  const fingerprints = (v, path = '') => { const out = []; const walk = (x, p) => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach((y, i) => walk(y, `${p}[${i}]`)); for (const [k, y] of Object.entries(x)) { if (k === 'sha256' && typeof y === 'string') out.push({ path: p, sha256: y.toLowerCase() }); else walk(y, p ? `${p}.${k}` : k); } }; walk(v, path); return out; };
+  /* fingerprints:begin — the same rules as src/files.js fingerprintsIn (a test holds them equal) */
+  const NAMED = [[/(^|\.)project\.entries\[\d+\]$/, 'photo'], [/(^|\.)project\.reproduction\.outputs$/, 'submitted'], [/(^|\.)project\.reproduction\.outputs$/, 'ran'], [/(^|\.)project\.liveRuns\[\d+\]$/, 'code'], [/(^|\.)project\.liveRuns\[\d+\]$/, 'output']];
+  const NOT_A_FILE = /(^|\.)project\.entries\[\d+\]$/;
+  const fingerprints = (v, path = '') => { const out = []; const walk = (x, p) => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach((y, i) => walk(y, `${p}[${i}]`)); for (const [k, y] of Object.entries(x)) { if (k === 'sha256' && typeof y === 'string') { if (!NOT_A_FILE.test(p)) out.push({ path: p, sha256: y.toLowerCase() }); } else if (typeof y === 'string' && /^[0-9a-f]{64}$/i.test(y) && NAMED.some(([at, key]) => key === k && at.test(p))) out.push({ path: p ? `${p}.${k}` : k, sha256: y.toLowerCase() }); else walk(y, p ? `${p}.${k}` : k); } }; walk(v, path); return out; };
+  /* fingerprints:end */
   async function fileCheck(f) {
     const h = hex(await crypto.subtle.digest('SHA-256', await f.arrayBuffer()));
     if (!lastPayload) return show($('fileout'), false, 'Check a record first (step 1), then this file is compared with it.', [['sha256', h]]);
