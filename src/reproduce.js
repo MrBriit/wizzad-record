@@ -174,7 +174,7 @@ export function reproductionsIn(payload) {
   const out = [];
   defenses.forEach((d, i) => {
     const r = d?.project?.reproduction;
-    if (r && typeof r === 'object' && r.notebook && r.outputs) out.push({ path: `record.defenses[${i}].project.reproduction`, title: d.title ?? null, sealedOn: d.sealedOn ?? null, attempt: d.attempt ?? null, reproduction: r });
+    if (r && typeof r === 'object' && r.notebook && r.outputs) out.push({ path: `record.defenses[${i}].project.reproduction`, title: d.title ?? null, sealedOn: d.sealedOn ?? null, timeZone: typeof d.timeZone === 'string' ? d.timeZone : null, attempt: d.attempt ?? null, reproduction: r });
   });
   return out;
 }

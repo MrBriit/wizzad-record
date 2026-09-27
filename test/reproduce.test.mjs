@@ -109,7 +109,8 @@ test('a run is read into the same shape: printed text first, then results, then 
 test('a record’s reproduction is found, and read for consistency from the record alone', () => {
   const r = { status: 'reproduced', notebook: { file: 'a.ipynb', sha256: 'a'.repeat(64) }, inputs: [], outputs: { submitted: 'b'.repeat(64), ran: 'b'.repeat(64) }, cells: { code: 4, differing: 0, failedAt: null } };
   const payload = { record: { defenses: [{ title: 'Essay', sealedOn: '2026-09-20' }, { title: 'Road salt', sealedOn: '2026-09-24', attempt: 2, project: { reproduction: r } }, { project: { reproduction: null } }] } };
-  assert.deepEqual(reproductionsIn(payload), [{ path: 'record.defenses[1].project.reproduction', title: 'Road salt', sealedOn: '2026-09-24', attempt: 2, reproduction: r }]);
+  // A record from before zones names none: its sitting's day is a UTC day, and the find says so (null).
+  assert.deepEqual(reproductionsIn(payload), [{ path: 'record.defenses[1].project.reproduction', title: 'Road salt', sealedOn: '2026-09-24', timeZone: null, attempt: 2, reproduction: r }]);
   assert.deepEqual(reproductionProblems(r), []);
   assert.equal(reproductionProblems({ ...r, outputs: { submitted: 'b'.repeat(64), ran: 'c'.repeat(64) } }).length, 1);
   assert.equal(reproductionProblems({ ...r, status: 'ran', cells: { code: 4, differing: 2, failedAt: null, differingAt: [2] } }).length, 1);

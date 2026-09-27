@@ -15,7 +15,7 @@
  */
 import { createHash, verify as nodeVerify } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { keyRing, publicKeyObject, fromMultibase58 } from './keys.js';
+import { keyRing, publicKeyObject, fromMultibase58, revocationOf } from './keys.js';
 
 const require = createRequire(import.meta.url);
 const jsonld = require('jsonld');
@@ -56,6 +56,8 @@ export async function verifyCredential(credential, keys) {
   if (foreign !== undefined) return { valid: false, reason: `context not bundled, not fetched: ${typeof foreign === 'string' ? foreign : 'an inline context'}`, keyId };
   let ring;
   try { ring = keys instanceof Map ? keys : keyRing(keys); } catch (err) { return { valid: false, reason: `keys: ${err.message}`, keyId }; }
+  const revoked = revocationOf(keyId, ring);
+  if (revoked) return { valid: false, revoked: true, reason: `key ${keyId} (from verificationMethod) was revoked by Wizzad from ${revoked.revokedFrom}: ${revoked.reason}`, keyId };
   const raw = keyId ? ring.get(keyId) : undefined;
   if (!raw) return { valid: false, reason: keyId ? `key ${keyId} (from verificationMethod) is not among the published keys` : 'no verificationMethod', keyId };
   let signature;

@@ -76,17 +76,26 @@
   const keyId = async (r) => hex(await crypto.subtle.digest('SHA-256', new Uint8Array([...SPKI, ...r]))).slice(0, 16);
   const ring = async (doc) => { const entries = Array.isArray(doc) ? doc : doc.keys || doc.verificationMethod || [doc]; const m = new Map(); for (const e of entries) { const r = raw(e); const id = await keyId(r); const claimed = e.keyId ?? (typeof e.id === 'string' ? e.id.split('#').pop() : undefined); if (claimed !== undefined && claimed !== id) throw new Error(`key ${claimed} does not match its bytes`); m.set(id, r); } return m; };
   const sigOf = (rec) => typeof rec.signature === 'object' ? rec.signature : { keyId: rec.keyId, signature: rec.signature, algorithm: rec.algorithm || 'Ed25519' };
+  // Keys Wizzad revoked: refused whatever key document is pasted (the same list as the command line's KNOWN_REVOKED).
+  const REVOKED = { '2624cf0b6019071d': { revokedFrom: '2026-09-15', reason: 'The server holding this key was compromised on 15 September 2026, so a record signed with it cannot be told apart from a forgery.' } };
+  const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
+  const revocationOf = (id, doc) => REVOKED[id] || ((doc && Array.isArray(doc.revoked) ? doc.revoked : []).find((x) => x && x.keyId === id) || null);
   let lastPayload = null;
   const show = (el, ok, big, rows) => { el.hidden = false; el.className = 'result ' + (ok ? 'ok' : 'bad'); el.innerHTML = `<div class="big">${big}</div>` + (rows ? `<dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''); };
   async function verify(rec, keysDoc) {
     const sig = sigOf(rec); const c = canonical(rec.payload); const digest = hex(await crypto.subtle.digest('SHA-256', enc.encode(c)));
+    const rv = revocationOf(sig.keyId, keysDoc);
+    if (rv) return { ok: false, big: 'NOT VALID — the record names a key Wizzad revoked', rows: [['key', esc(sig.keyId) + ' · revoked from ' + esc(rv.revokedFrom || '?')], ['why', esc(rv.reason || 'Revoked by Wizzad.')], ['digest', digest]] };
     const keys = await ring(keysDoc); const r = keys.get(sig.keyId);
     if (!r) return { ok: false, big: 'NOT VALID — the record names a key that is not among the published keys', rows: [['key', sig.keyId || '(none)'], ['digest', digest]] };
     const key = await crypto.subtle.importKey('spki', new Uint8Array([...SPKI, ...r]), { name: 'Ed25519' }, false, ['verify']);
     const ok = await crypto.subtle.verify({ name: 'Ed25519' }, key, b64(sig.signature), enc.encode(c));
     lastPayload = ok ? rec.payload : null;
     const p = rec.payload || {};
-    return { ok, big: ok ? 'VALID — the signature checks against the published key' : 'NOT VALID — the payload or the signature was changed after signing', rows: [['key', sig.keyId + ' · published'], ['digest', 'sha256(canonical payload) = ' + digest], ...(p.issuedAt ? [['issued', p.issuedAt]] : []), ...(p.recordId ? [['record', p.recordId]] : [])] };
+    // The zones the record names (PROFILE §3.1): the days beside each are days in it; none named means UTC days.
+    const zones = []; const walk = (v, at) => { if (!v || typeof v !== 'object') return; if (Array.isArray(v)) return v.forEach((x, i) => walk(x, `${at}[${i}]`)); for (const [k, x] of Object.entries(v)) { const q = at ? `${at}.${k}` : k; if (k === 'timeZone' && typeof x === 'string') zones.push(`${q} = ${x}`); else walk(x, q); } }; walk(p, '');
+    const esc = (t) => String(t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+    return { ok, big: ok ? 'VALID — the signature checks against the published key' : 'NOT VALID — the payload or the signature was changed after signing', rows: [['key', sig.keyId + ' · published'], ['digest', 'sha256(canonical payload) = ' + digest], ...(p.issuedAt ? [['issued', p.issuedAt]] : []), ...(p.recordId ? [['record', p.recordId]] : []), ['zones', zones.length ? esc(zones.join('; ')) : 'none named: every day in the record is a UTC day']] };
   }
   async function run(rec, keysDoc) { try { const r = await verify(rec, keysDoc); show($('out'), r.ok, r.big, r.rows); } catch (e) { show($('out'), false, 'Could not check: ' + e.message); } }
   $('check').onclick = () => { try { run(JSON.parse($('record').value), JSON.parse($('keys').value)); } catch (e) { show($('out'), false, 'Paste both documents as JSON: ' + e.message); } };

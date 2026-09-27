@@ -2,7 +2,7 @@
 
 *What a piece of defended work is, what its signed record says about each of its five parts, and how anyone can check each part without asking Wizzad.*
 
-Status: v1.1, 26 September 2026. v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
+Status: v1.1, 26 September 2026. v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
 
 ## 1. The standard on one page
 
@@ -85,8 +85,11 @@ Only `payload` is signed:
 | `record.briefConfirmationsWithheld` | How many replies were left out because they failed their own check at issue, so that the record never looks complete when a reply is missing. |
 | `record.claimConfirmations[]` | Answers from the people a student named about a claim beyond a piece: a job, a paper, a course, an award, an activity, a teammate, a reference letter (§3.2). |
 | `record.claimConfirmationsWithheld` | As `briefConfirmationsWithheld`, for those answers. |
+| `record.timeZone` | The IANA time zone the student was in when the record was issued, such as `America/New_York`. The days the record states of its own period, and the `confirmedOn` and `answeredOn` days fixed at issue, are days in it. |
 
 **Absent is not zero.** Fields were added over time. A missing field means the record does not carry it: either the record was issued before the field existed, or the part did not apply. It never means none, no, or false. A verifier must say "not carried", not "0".
+
+**Dates and time zones.** Instants (`issuedAt`, and every moment carried as an ISO 8601 string) are UTC, and `timeZone`, where an object carries one, is the IANA time zone the student was in when that part happened — for display only, and covered by the signature — so the calendar days (the `…On` fields) in that object, and in the objects inside it that carry no `timeZone` of their own, are days in that zone, while a day with no `timeZone` above it is a UTC day.
 
 ### 3.2 Claims others confirmed
 
@@ -112,7 +115,8 @@ Each entry in `record.defenses[i]` is one kept attempt:
 |---|---|
 | `id` | The defense's own id; it finds the attempt's recording behind a link. Absent on early records. |
 | `title` | The piece's title, as the student named it. |
-| `sealedOn` | The UTC day the attempt was sealed, `YYYY-MM-DD`. Never the time. |
+| `sealedOn` | The day the attempt was sealed, `YYYY-MM-DD`: a day in `timeZone` when the entry carries one, otherwise a UTC day (§3.1). Never the time. |
+| `timeZone` | The IANA time zone the student was in when the attempt began. The days of `sealedOn` and `made` are days in it. Absent on attempts sealed before it was carried, or when no zone was known. |
 | `attempt` | Which attempt at this piece, counted from 1. |
 | `practisedBefore` | How many practice sittings on the piece were sealed before this one began. Practice asks the same questions. |
 | `identity` | `session`: the usual sign-in. `passkey`: the student confirmed presence with a passkey when the session began. Neither is an identity check. |
@@ -120,9 +124,9 @@ Each entry in `record.defenses[i]` is one kept attempt:
 
 ### 4.1 Part I: the brief
 
-`project.brief` = `{text, setBy, sha256, enteredOn, source}`.
+`project.brief` = `{text, setBy, sha256, enteredOn, source, timeZone?}`.
 
-`text` is the brief as fixed, word for word. `enteredOn` is the UTC day it was fixed. The day each file was handed in sits beside it (§4.3), so a reader can see for themselves whether the brief came before the work.
+`text` is the brief as fixed, word for word. `enteredOn` is the day it was fixed: a day in `brief.timeZone` (the zone the student started the project in) when present, otherwise a UTC day. The day each file was handed in sits beside it (§4.3), so a reader can see for themselves whether the brief came before the work.
 
 **The fingerprint.** `sha256` is SHA-256, lowercase hex, over the UTF-8 bytes of the brief's *canonical text*. To get the canonical text:
 
@@ -173,11 +177,11 @@ None of this shows who was at the keyboard, or what was written somewhere else f
 
 ### 4.3 Part III: the deliverables
 
-`project.deliverables[]` = `{file, role, bytes, sha256, handedInOn}`, one entry for each file handed in.
+`project.deliverables[]` = `{file, role, bytes, sha256, handedInOn, timeZone?}`, one entry for each file handed in.
 
 * `sha256` is SHA-256, lowercase hex, over the file's exact bytes.
 * `bytes` is its length.
-* `handedInOn` is the UTC day it arrived.
+* `handedInOn` is the day it arrived: a day in the entry's `timeZone` (the zone it was handed in from) when present, otherwise a UTC day.
 * `role` comes from the file's extension:
 
 | Extensions | `role` |
@@ -205,7 +209,7 @@ A reader who holds the files hashes each one and finds it in the list (§8). Hol
 
 | Field | Meaning |
 |---|---|
-| `ranOn` | The UTC day of the run. |
+| `ranOn` | The day of the run: a day in the reproduction's `timeZone` (the zone the student started it from) when present, otherwise a UTC day. |
 | `notebook` | `{file, sha256}`: the notebook that was run. When a project holds several, it is the first `.ipynb` by name. |
 | `inputs[]` | `{file, sha256}`: every other file on record at the time, written beside the notebook. |
 | `outputs.submitted` | The outputs digest (§4.3.3) of the outputs saved in the notebook file. |
@@ -348,7 +352,7 @@ When a spreadsheet model is handed in, `project.model` records Wizzad recalculat
 
 | Field | Meaning |
 |---|---|
-| `file`, `sha256`, `ranOn` | The workbook, by fingerprint, and the UTC day of the run. |
+| `file`, `sha256`, `ranOn` | The workbook, by fingerprint, and the day of the run: a day in the model run's `timeZone` when present, otherwise a UTC day. |
 | `formulas` | The number of formulas in the workbook. |
 | `evaluated`, `matched`, `differing` | How many formulas Wizzad evaluated *and* set against a saved value, and how many of those matched or differed. A proper spreadsheet error such as `#DIV/0!` counts as a value. |
 | `unsupported[]` | Functions Wizzad's evaluator does not evaluate, by name. |
@@ -435,6 +439,7 @@ Wizzad publishes its public keys at `https://<host>/api/proof/keys`:
 
 * `keyId` is the first 16 hex characters of SHA-256 over the key's SPKI DER encoding. So an id can be recomputed from the bytes, and a document cannot claim an id its key does not have. A verifier **must** recompute it.
 * The list carries the key that signs today **first**, then any retired keys. A retired key never signs again, but a record signed under it keeps verifying.
+* A **revoked** key is different from a retired one: it may have left Wizzad's hands, so nothing signed with it can be relied on. It is never in `keys`; it is named, with the day from which it is revoked and why, in a `revoked` list beside them (`[{ keyId, revokedFrom, reason }]`). A checker refuses a record or credential naming a revoked key even when an older copy of the key documents still lists it. `2624cf0b6019071d` is revoked from 15 September 2026: the server holding it was compromised that day.
 * A record naming a key that is not in the list cannot be checked. A verifier must say so rather than try another key.
 * The same keys appear as Multikeys (`z6Mk…`, multicodec `0xed01` followed by 32 bytes) in the issuer's DID document (§7.3). The two publications hold the same keys; a verifier may use either.
 
@@ -515,6 +520,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 
   Nothing in v0.1 changed.
 * **What changed in v1.1.** A second rule for reading a notebook's own outputs (§4.3.2), which reads a cell that displays before it prints the same as a run of it, and the reproduction's `canon` field, which names the rule. Reproductions made before v1.1 carry no `canon` and are read by rule 1; their digests are unchanged, and so is how a run is read.
+* **Added within v1.1: time zones.** Optional `timeZone` fields on the record, each attempt, the brief, each deliverable, the reproduction and the model run (§3.1). They change no check: instants are UTC as before, and a record without them gives UTC days, as every record did.
 
 ## 10. What a verifier must not do
 

@@ -14,11 +14,11 @@
  * link's own origin is contacted, and only when a link (not a file) is given.
  */
 import { readFile } from 'node:fs/promises';
-import { verifyRecord, signatureOf } from '../src/record.js';
+import { verifyRecord, signatureOf, timeZonesIn } from '../src/record.js';
 import { verifyCredential } from '../src/credential.js';
 import { fingerprintFile, fingerprintsIn, matchFingerprint } from '../src/files.js';
 import { fetchFromLink } from '../src/fetch.js';
-import { keyRing } from '../src/keys.js';
+import { keyRing, revocationOf } from '../src/keys.js';
 import { BADGE, canonicalOutcomes, compareOutcomes, outcomesDigest, readNotebook, reproductionProblems, reproductionsIn, runOutcomes, submittedFor } from '../src/reproduce.js';
 import { runNotebook } from '../src/run.js';
 import { createHash } from 'node:crypto';
@@ -64,10 +64,13 @@ async function main() {
     const sig = signatureOf(record);
     const r = verifyRecord(record, ring);
     console.log(`record   ${r.valid ? 'VALID' : 'NOT VALID'}${r.reason ? ` — ${r.reason}` : ''}`);
-    console.log(`key      ${sig?.keyId ?? '(none)'} · ${ring.has(sig?.keyId) ? 'published' : 'not published'} · keys from ${from}`);
+    console.log(`key      ${sig?.keyId ?? '(none)'} · ${revocationOf(sig?.keyId, ring) ? `revoked from ${revocationOf(sig?.keyId, ring).revokedFrom}` : ring.has(sig?.keyId) ? 'published' : 'not published'} · keys from ${from}`);
     console.log(`digest   sha256(canonical payload) = ${r.canonicalSha256 ?? '(none)'}`);
     const p = record.payload ?? {};
     if (p.issuedAt) console.log(`issued   ${p.issuedAt}`);
+    // The zones the record names (§3.1): the days beside each are days in it; none named means UTC days.
+    const zones = timeZonesIn(p);
+    console.log(`zones    ${zones.length ? zones.map((z) => `${z.path} = ${z.timeZone}`).join('; ') : 'none named: every day in the record is a UTC day'}`);
     if (p.recordId) console.log(`record   ${p.recordId}`);
     const fps = fingerprintsIn(p);
     if (fps.length) console.log(`files    ${fps.length} fingerprint(s) on record: ${fps.map((f) => `${f.path} = ${f.sha256.slice(0, 12)}…`).join('; ')}`);
@@ -143,7 +146,7 @@ async function reproduce(notebookPath, target) {
   // Attempts at one project carry the same reproduction; each distinct one is checked once.
   const distinct = [...new Map(mine.map((x) => [JSON.stringify(x.reproduction), x])).values()];
   const r = distinct[0].reproduction;
-  const where = mine.map((x) => `${x.title ? `“${x.title}”` : x.path}${x.sealedOn ? ` sealed ${x.sealedOn}` : ''}`);
+  const where = mine.map((x) => `${x.title ? `“${x.title}”` : x.path}${x.sealedOn ? ` sealed ${x.sealedOn}${x.timeZone ? ` (${x.timeZone})` : ' (UTC)'}` : ''}`);
   console.log(`notebook  ${r.notebook.file} · sha256 ${short(hex)} · the notebook the record’s re-run used (${[...new Set(where)].join('; ')})`);
   if (distinct.length > 1) console.log(`note      The record carries ${distinct.length} different re-runs of this notebook; the first is checked here.`);
 

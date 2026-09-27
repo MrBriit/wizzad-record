@@ -61,6 +61,30 @@ export function keyIdOfRaw(raw) {
   return createHash('sha256').update(Buffer.concat([SPKI_ED25519_PREFIX, Buffer.from(raw)])).digest('hex').slice(0, 16);
 }
 
+/**
+ * Keys Wizzad has revoked. A record or credential naming one fails whatever
+ * key document is supplied, so an old copy of the keys list that still
+ * carries the key cannot bring it back. Kept in step with the platform's
+ * `REVOKED_KEYS`; `/api/proof/keys` also lists revocations under `revoked`.
+ */
+export const KNOWN_REVOKED = new Map([
+  ['2624cf0b6019071d', { revokedFrom: '2026-09-15', reason: 'The server holding this key was compromised on 15 September 2026, so a record signed with it cannot be told apart from a forgery.' }],
+]);
+
+/** Every revocation: the built-in ones, then those a key document names (`revoked: [{ keyId, revokedFrom, reason }]`). */
+export function revocations(source) {
+  const out = new Map(KNOWN_REVOKED);
+  const list = source && !Array.isArray(source) && Array.isArray(source.revoked) ? source.revoked : [];
+  for (const r of list) if (r && typeof r.keyId === 'string' && !out.has(r.keyId)) out.set(r.keyId, { revokedFrom: String(r.revokedFrom ?? ''), reason: String(r.reason ?? 'Revoked by Wizzad.') });
+  return out;
+}
+
+/** Why a key cannot be relied on — from the ring's own document or the built-in list — or null. */
+export function revocationOf(keyId, ring) {
+  if (!keyId) return null;
+  return (ring instanceof Map && ring.revoked instanceof Map ? ring.revoked.get(keyId) : undefined) ?? KNOWN_REVOKED.get(keyId) ?? null;
+}
+
 /** A Node public-key object for the raw 32 bytes. */
 export function publicKeyObject(raw) {
   return createPublicKey({ key: Buffer.concat([SPKI_ED25519_PREFIX, Buffer.from(raw)]), format: 'der', type: 'spki' });
@@ -86,6 +110,8 @@ export function rawFromAny(k) {
  * A key ring: every key in the document, by id. Accepts the `/api/proof/keys`
  * reply, a DID document, an array of either's entries, or one key. The id is
  * recomputed from the bytes — a document cannot claim an id its key does not have.
+ * A revoked key is left out even when the document still lists it; the ring
+ * carries the revocations as `ring.revoked` so a check can say why.
  */
 export function keyRing(source) {
   const entries = Array.isArray(source) ? source
@@ -93,12 +119,14 @@ export function keyRing(source) {
     : source && Array.isArray(source.verificationMethod) ? source.verificationMethod
     : [source];
   const ring = new Map();
+  const revoked = revocations(source);
   for (const e of entries) {
     const raw = rawFromAny(e);
     const id = keyIdOfRaw(raw);
     const claimed = typeof e === 'object' && e ? (e.keyId ?? (typeof e.id === 'string' ? e.id.split('#').pop() : undefined)) : undefined;
     if (claimed !== undefined && claimed !== id) throw new Error(`key ${claimed} does not match its bytes (which hash to ${id})`);
-    ring.set(id, raw);
+    if (!revoked.has(id)) ring.set(id, raw);
   }
+  ring.revoked = revoked;
   return ring;
 }

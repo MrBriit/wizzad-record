@@ -10,7 +10,27 @@
  */
 import { createHash, verify as nodeVerify } from 'node:crypto';
 import { canonicalJson } from './canonical.js';
-import { keyRing, publicKeyObject } from './keys.js';
+import { keyRing, publicKeyObject, revocationOf } from './keys.js';
+
+/**
+ * Every time zone the payload names, by path (PROFILE §3.1): the IANA zone the student was in, for display only — the
+ * days in the object that carries one (and in those inside it that carry none) are days in that zone. Instants stay
+ * UTC. A record without any gives UTC days. Covered by the signature like every other field; nothing here checks it.
+ */
+export function timeZonesIn(payload) {
+  const out = [];
+  const walk = (v, path) => {
+    if (!v || typeof v !== 'object') return;
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return; }
+    for (const [k, x] of Object.entries(v)) {
+      const at = path ? `${path}.${k}` : k;
+      if (k === 'timeZone' && typeof x === 'string') out.push({ path: at, timeZone: x });
+      else walk(x, at);
+    }
+  };
+  walk(payload, '');
+  return out;
+}
 
 /** The record's signature fields, whichever shape carried them. */
 export function signatureOf(record) {
@@ -34,6 +54,8 @@ export function verifyRecord(record, keys) {
   try { ring = keys instanceof Map ? keys : keyRing(keys); } catch (err) { return { valid: false, reason: `keys: ${err.message}` }; }
   const canonical = canonicalJson(record.payload);
   const canonicalSha256 = createHash('sha256').update(canonical, 'utf8').digest('hex');
+  const revoked = revocationOf(sig.keyId, ring);
+  if (revoked) return { valid: false, revoked: true, reason: `key ${sig.keyId} was revoked by Wizzad from ${revoked.revokedFrom}: ${revoked.reason}`, keyId: sig.keyId, canonicalSha256 };
   const raw = sig.keyId ? ring.get(sig.keyId) : undefined;
   if (!raw) return { valid: false, reason: sig.keyId ? `key ${sig.keyId} is not among the published keys` : 'the record names no key', keyId: sig.keyId, canonicalSha256 };
   let bytes;

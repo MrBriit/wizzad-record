@@ -76,3 +76,44 @@ test('a link is taken apart into its origin and token', () => {
   assert.deepEqual(partsOfLink('https://wizzad.ai/proof/S1AArjQA1rYQflQTYUDDv2z-'), { origin: 'https://wizzad.ai', token: 'S1AArjQA1rYQflQTYUDDv2z-' });
   assert.throws(() => partsOfLink('https://wizzad.ai/myspace'), /not a record link/);
 });
+
+// ─── The zone a record's days are in (PROFILE §3.1) ─────────────────────────
+
+import { sign as nodeSign } from 'node:crypto';
+import { timeZonesIn, reproductionsIn } from '../src/index.js';
+
+/** A record signed with a fresh key, for shapes no real record fixture has yet. */
+function signed(payload) {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const der = publicKey.export({ type: 'spki', format: 'der' });
+  const ring = keyRing([{ algorithm: 'Ed25519', publicKey: der.toString('base64') }]);
+  const keyId = [...ring.keys()][0];
+  const signature = nodeSign(null, Buffer.from(canonicalJson(payload), 'utf8'), privateKey).toString('base64url');
+  return { record: { status: 'ok', payload, signature, algorithm: 'Ed25519', keyId }, ring };
+}
+
+const defense = (over = {}) => ({ id: 'd1', title: 'Osmosis lab', sealedOn: '2026-09-26', attempt: 1, identity: 'session', results: { checked: 3, checkedCorrect: 3 }, ...over });
+
+test('a record with time zones and one without both verify: the zone is metadata, covered by the signature', () => {
+  const zoned = signed({ schema: 'wizzad.proof/v1', recordId: 'r', issuedAt: '2026-09-27T02:00:00.000Z', windowDays: 30, record: { timeZone: 'America/New_York', defenses: [defense({ timeZone: 'America/New_York', project: { brief: { enteredOn: '2026-09-26', timeZone: 'America/New_York' }, deliverables: [{ file: 'a.csv', handedInOn: '2026-09-27', timeZone: 'Europe/London' }] } })] } });
+  assert.equal(verifyRecord(zoned.record, zoned.ring).valid, true);
+  assert.deepEqual(timeZonesIn(zoned.record.payload).map((z) => z.path), ['record.timeZone', 'record.defenses[0].timeZone', 'record.defenses[0].project.brief.timeZone', 'record.defenses[0].project.deliverables[0].timeZone']);
+  // Changing the zone is changing the record.
+  const moved = structuredClone(zoned.record);
+  moved.payload.record.defenses[0].timeZone = 'Asia/Tokyo';
+  assert.equal(verifyRecord(moved, zoned.ring).valid, false);
+  // A record from before zones: nothing named, every day a UTC day — and it verifies as it always did.
+  const plain = signed({ schema: 'wizzad.proof/v1', recordId: 'r', issuedAt: '2026-09-27T02:00:00.000Z', windowDays: 30, record: { defenses: [defense({ sealedOn: '2026-09-27' })] } });
+  assert.equal(verifyRecord(plain.record, plain.ring).valid, true);
+  assert.deepEqual(timeZonesIn(plain.record.payload), []);
+  assert.deepEqual(timeZonesIn(record.payload), []);
+});
+
+test('a re-run found in the record says which zone its sitting’s day is in, or none', () => {
+  const r = { status: 'reproduced', notebook: { file: 'a.ipynb', sha256: 'a'.repeat(64) }, outputs: { submitted: 'x', ran: 'x' }, cells: { code: 1, differing: 0 } };
+  const [zoned] = reproductionsIn({ record: { defenses: [defense({ timeZone: 'America/New_York', project: { reproduction: r } })] } });
+  assert.equal(zoned.sealedOn, '2026-09-26');
+  assert.equal(zoned.timeZone, 'America/New_York');
+  const [plain] = reproductionsIn({ record: { defenses: [defense({ project: { reproduction: r } })] } });
+  assert.equal(plain.timeZone, null);
+});
