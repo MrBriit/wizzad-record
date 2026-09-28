@@ -21,6 +21,7 @@ import { fetchFromLink } from '../src/fetch.js';
 import { keyRing, revocationOf } from '../src/keys.js';
 import { BADGE, canonicalOutcomes, compareOutcomes, outcomesDigest, readNotebook, reproductionProblems, reproductionsIn, runOutcomes, submittedFor } from '../src/reproduce.js';
 import { runNotebook } from '../src/run.js';
+import { hostWordsIn, hostWordLine, verifyHostWord } from '../src/host.js';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
@@ -74,7 +75,11 @@ async function main() {
     if (p.recordId) console.log(`record   ${p.recordId}`);
     const fps = fingerprintsIn(p);
     if (fps.length) console.log(`files    ${fps.length} fingerprint(s) on record: ${fps.map((f) => `${f.path} = ${f.sha256.slice(0, 12)}…`).join('; ')}`);
-    process.exit(r.valid ? 0 : 1);
+    // Sittings sat with a host in the room (§4.4.1): the host's own signed word, checked under the host's key — or awaited.
+    const hosted = hostWordsIn(p);
+    for (const e of hosted) console.log(`host     ${hostWordLine(e)}`);
+    const hostWordsHold = hosted.every((e) => !e.word || verifyHostWord(e.word, e.defense).valid);
+    process.exit(r.valid && hostWordsHold ? 0 : 1);
   }
   if (cmd === 'credential' && positional[0]) {
     const keysPath = flag('--keys');

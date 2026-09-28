@@ -1,8 +1,8 @@
-# The Defended Work Standard — v1.1
+# The Defended Work Standard — v1.2
 
 *What a piece of defended work is, what its signed record says about each of its five parts, and how anyone can check each part without asking Wizzad.*
 
-Status: v1.1, 26 September 2026. v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
+Status: v1.2, 28 September 2026. v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
 
 ## 1. The standard on one page
 
@@ -406,6 +406,42 @@ A reader can watch a recording only through a link the student made with the rec
 * Wizzad does not analyse recordings: no face, gaze or room check.
 * A recording cannot show what was outside the frame.
 
+#### 4.4.1 A sitting with a host in the room
+
+A sitting may be sat with a **host** in the same room: a person at the student's school who checks in person who is sitting, watches the whole sitting, and afterwards signs what they saw with their own passkey. Nothing about the sitting itself changes — the same clock, the same grading, the same seal by the student's platform — and the questions are ones the student has not been asked on the piece before. The host is an account Wizzad has admitted to hosting: it holds a confirmed school email address and a registered passkey.
+
+**`condition`** = `'supervised'` on such a sitting. Absent on every other sitting, and on every record issued before this version: read absent as *sat alone*, never as *unsupervised* in any stronger sense.
+
+**`supervised`** — the host's window, as the platform read it when the sitting sealed:
+
+| Field | Meaning |
+|---|---|
+| `windowId` | The host's sitting window the student checked in to. |
+| `place`, `startsAt`, `endsAt` | Where and when the window was, as the host set it. Absent when it could not be read at the seal. |
+| `materials`, `device` | The window's rules as the host set them: `closed_book`, `open_book` or `own_notes`; `own` (the student's device) or `provided` (the host's). Absent as above. |
+| `host` = `{name, organisation, domain}` | The host's name and organisation **as the host entered them**, unchecked; `domain` is the domain of a school email address the host confirmed with Wizzad. |
+| `identityConfirmed` | Whether the host had confirmed, in person and before the sitting began, who was sitting. |
+| `attestation` | The host's own signed word — below. Absent until given: the record is then **awaiting the host's word**, and says so. |
+
+**`supervised.attestation`** — the host's word, made by the host's passkey and checkable by anyone:
+
+* `statement`: what the host signed, as canonical JSON (§5.1). `schema` is `wizzad.host-word/v1`. It names the student's sealed record (`recordId`, `sealedAt`, `payloadSha256` = SHA-256 over the canonical JSON of that record's payload), the check-in and window (`checkinId`, `windowId`), the piece (`piece.title`, `piece.attempt`), the host as above, `watched: 'whole'` — *I watched this sitting from start to finish* — `exceptions[]` drawn from `left_room`, `other_device`, `technical_fault`, a `note` (the host's own words, or null), and `signedAt`.
+* `challenge`: base64url(SHA-256(canonical JSON of `statement`)). This is the WebAuthn challenge the host's authenticator signed, so the signature is over the statement and nothing else.
+* `assertion` = `{credentialId, clientDataJSON, authenticatorData, signature}`: the WebAuthn assertion, base64url, exactly as the authenticator returned it.
+* `key` = `{spki, alg, keyId}`: the host's passkey public key as SubjectPublicKeyInfo (base64), its algorithm (`ES256`, `RS256` or `EdDSA`), and its id — the first 16 hex characters of the SHA-256 over the SPKI, the same rule as §6.
+* `rpId`, `origin`: the relying-party id and origin the assertion was made for.
+
+**Checking a host's word** (`wizzad-record` does this in `src/host.js`, with Node's `crypto` and nothing else):
+
+1. `challenge` equals base64url(SHA-256(canonical JSON of `statement`)).
+2. `clientDataJSON` decodes to `{type: 'webauthn.get', challenge, origin}` with that challenge and the attestation's `origin`, whose host is `rpId` or a subdomain of it.
+3. `authenticatorData` is at least 37 bytes; its first 32 are SHA-256(`rpId`); its flags byte has *user present* (bit 0) and *user verified* (bit 2) set.
+4. `key.keyId` is the first 16 hex of SHA-256(`key.spki`).
+5. The signature holds under the key over `authenticatorData ‖ SHA-256(clientDataJSON)` — ECDSA P-256 with SHA-256 (DER signature) for `ES256`, RSASSA-PKCS1-v1_5 with SHA-256 for `RS256`, Ed25519 for `EdDSA`.
+6. The statement names the sitting it sits beside: `statement.recordId` is the defense's `id`, `statement.windowId` is `supervised.windowId`, `statement.piece.attempt` is the defense's `attempt`, and `statement.host.domain` is `supervised.host.domain`.
+
+*Valid* here means: **the holder of that passkey signed those words about that sitting.** It does not say who the holder is. The platform admitted the account to hosting after confirming a school address at `domain`; the name and organisation are the host's own entry. The attestation is carried inside the record's payload, so the record's signature (§5) covers the copy the platform kept; the host's signature is the host's own and is checked separately. A record whose sitting was `supervised` but carries no `attestation` is awaiting the host's word — not a failed check, and not a sitting sat alone.
+
 ### 4.5 Part V: the record
 
 The parts above are fields of one payload, signed as a whole (§5). A task a reader set, and the student defended, is also issued as an Open Badges 3.0 credential (§7). The record is the student's to issue and to withdraw. A withdrawn or expired link stops serving the record; it never changes what was signed.
@@ -521,6 +557,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
   Nothing in v0.1 changed.
 * **What changed in v1.1.** A second rule for reading a notebook's own outputs (§4.3.2), which reads a cell that displays before it prints the same as a run of it, and the reproduction's `canon` field, which names the rule. Reproductions made before v1.1 carry no `canon` and are read by rule 1; their digests are unchanged, and so is how a run is read.
 * **Added within v1.1: time zones.** Optional `timeZone` fields on the record, each attempt, the brief, each deliverable, the reproduction and the model run (§3.1). They change no check: instants are UTC as before, and a record without them gives UTC days, as every record did.
+* **What changed in v1.2.** A sitting sat with a host in the room (§4.4.1): the optional `condition` and `supervised` fields on a defense, and inside `supervised` the host's own signed word, `attestation` — a WebAuthn assertion over a canonical-JSON statement, carried with the host's public key so that anyone can check it. This adds a second signature to check, made by a second party's key; it changes nothing about the record's own signature, keys or canonical form. Records issued before v1.2 carry none of these fields and are read as sat alone.
 
 ## 10. What a verifier must not do
 
@@ -533,5 +570,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 * Must not present `ran` as a failure. It means the notebook ran without error while some outputs differed, and the record names which cells.
 * Must not present a reproduction as a statement about how the data were collected, or a science project's re-run as the bench work re-done.
 * Must not present an unchecked name (`setBy`, a credential's `name` identifier, a setter's answer `name`, a claim answerer's `name` or `relation`) as checked.
+* Must not present a host's word as Wizzad's, nor a host's `name` or `organisation` as checked: the word is the passkey holder's, and only the `domain` was confirmed (§4.4.1).
+* Must not read a `supervised` sitting without an `attestation` as failed, nor a sitting without `condition` as unsupervised in any sense stronger than *sat alone*.
 
 The record's own words carry these limits. Keep them beside any result you show.

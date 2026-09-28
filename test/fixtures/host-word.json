@@ -1,0 +1,91 @@
+{
+  "defense": {
+    "id": "6EybGICRbOqOMExdsKiM4gwe-WFXSISi",
+    "title": "Osmosis in potato cylinders — lab write-up",
+    "sealedOn": "2026-10-06",
+    "timeZone": "America/New_York",
+    "attempt": 1,
+    "identity": "session",
+    "condition": "supervised",
+    "supervised": {
+      "windowId": "6QV4EyNVBjkWpx-p",
+      "place": "Room 204",
+      "startsAt": "2026-10-06T14:00:00.000Z",
+      "endsAt": "2026-10-06T16:00:00.000Z",
+      "host": {
+        "name": "Elena Marsh",
+        "organisation": "Example College",
+        "domain": "example.edu"
+      },
+      "identityConfirmed": true,
+      "attestation": {
+        "key": {
+          "alg": "ES256",
+          "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEA6xcfFmoYEuFn4dj236OmUuHD0DXnDmJIGncIEAH3A3A1kBwXZz6atKpA7N+51N1n9csGSvhIWHxL2DLN5kyfA==",
+          "keyId": "cd1f12571ca96031"
+        },
+        "rpId": "localhost",
+        "origin": "http://localhost:3000",
+        "assertion": {
+          "signature": "MEUCIQCtMlGLtfGV7muDuXrR3gazocXLiAV7tdRoHjb3hE1iqQIgWcrjtaxQBvLzDxUCBT8RGzQimXxG8MsfTu2ZhTiXCUQ",
+          "credentialId": "joCTQSLIO3iL7uyPWwOZ1A",
+          "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUE1JNFo4NnZjTFQ4TU5vTjUyZzVkTUdiaFpha1R2MnZ6cExqYzl4VHhfQSIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+          "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2MFAAAAAw"
+        },
+        "challenge": "PMI4Z86vcLT8MNoN52g5dMGbhZakTv2vzpLjc9xTx_A",
+        "statement": {
+          "host": {
+            "name": "Elena Marsh",
+            "domain": "example.edu",
+            "organisation": "Example College"
+          },
+          "note": "Left for two minutes; came back.",
+          "piece": {
+            "title": "Osmosis in potato cylinders — lab write-up",
+            "attempt": 1
+          },
+          "schema": "wizzad.host-word/v1",
+          "watched": "whole",
+          "recordId": "6EybGICRbOqOMExdsKiM4gwe-WFXSISi",
+          "sealedAt": "2026-10-06T14:12:12.000Z",
+          "signedAt": "2026-10-06T15:30:20.000Z",
+          "windowId": "6QV4EyNVBjkWpx-p",
+          "checkinId": "b91nukmvuTEATmKQ",
+          "exceptions": [
+            "left_room"
+          ],
+          "payloadSha256": "401fe80d833a2a4852727e056bceca96cf2af5bb913a6f5becc9823a849aabe5"
+        }
+      }
+    },
+    "results": {
+      "checked": 8,
+      "checkedCorrect": 8,
+      "explained": 3,
+      "explainedFull": 3,
+      "explainedPartial": 0,
+      "episodic": 0,
+      "episodicAccounted": 0,
+      "history": 0,
+      "historyConnected": 0,
+      "ungraded": 0,
+      "late": 0,
+      "skipped": 0
+    },
+    "rescore": {
+      "agreed": 3,
+      "of": 3
+    },
+    "timing": {
+      "minutes": 2
+    },
+    "telemetry": {
+      "windowLeft": 0,
+      "pasted": 0
+    },
+    "elsewhere": {
+      "file": null,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  }
+}

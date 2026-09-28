@@ -27,6 +27,17 @@ Offline, with the two documents saved:
 wizzad-record check record.json --keys keys.json     # keys.json: /api/proof/keys, or the issuer's did.json
 ```
 
+## Check a host's word
+
+A sitting sat with a host in the room carries, once the host has signed, the host's own word — a WebAuthn assertion their passkey made over a statement (*I watched this sitting from start to finish*, any exceptions, a note), with the host's public key. `check` prints one line per such sitting and checks the word under that key, with Node's `crypto` alone:
+
+```
+host     record.defenses[0] · Elena Marsh, Example College (example.edu) signed 2026-10-06T15:24:00.000Z · watched the whole sitting · key 3f1c…  · VALID
+host     record.defenses[1] · sat with Elena Marsh, Example College (example.edu) · awaiting the host’s word
+```
+
+*Valid* means the holder of that passkey signed those words about that sitting — see [the standard, §4.4.1](PROFILE.md#441-a-sitting-with-a-host-in-the-room) for what it does and does not say. A word that does not hold makes `check` exit 1.
+
 ## Check a credential
 
 ```bash
