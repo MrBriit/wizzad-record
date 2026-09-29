@@ -2,7 +2,7 @@
 
 *What a piece of defended work is, what its signed record says about each of its five parts, and how anyone can check each part without asking Wizzad.*
 
-Status: v1.4, 28 September 2026. v1.4 adds the window's recording rule (§4.4.1): an optional `supervised.recording` beside the sitting's `capture`, and the same field in the host's statement; every word and record made before it reads exactly as it did. v1.3 adds two ways a host may give their word through Wizzad (§4.4.2), each disclosed on the record and checked under Wizzad's published keys; every word given before it reads exactly as it did. v1.2 added the sitting with a host in the room (§4.4.1). v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
+Status: v1.5, 29 September 2026. v1.5 adds each piece's standing (§4.6): what supervised sittings on a piece found, with its remote sittings beside them, recomputable from the record alone; every record made before it reads exactly as it did. v1.4 adds the window's recording rule (§4.4.1): an optional `supervised.recording` beside the sitting's `capture`, and the same field in the host's statement; every word and record made before it reads exactly as it did. v1.3 adds two ways a host may give their word through Wizzad (§4.4.2), each disclosed on the record and checked under Wizzad's published keys; every word given before it reads exactly as it did. v1.2 added the sitting with a host in the room (§4.4.1). v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
 
 ## 1. The standard on one page
 
@@ -467,6 +467,44 @@ In both, **`supervised.attestation`** is:
 
 The parts above are fields of one payload, signed as a whole (§5). A task a reader set, and the student defended, is also issued as an Open Badges 3.0 credential (§7). The record is the student's to issue and to withdraw. A withdrawn or expired link stops serving the record; it never changes what was signed.
 
+### 4.6 The standing
+
+A record may carry, for each piece among its defenses, a **standing** (`record.standings[]`, v1.5): what the supervised sittings on that piece found, with its counted remote sittings beside them as context. It never says why a gap exists. It speaks for the defenses this record carries — a record covers a window (`windowDays`), so a supervised sitting on the piece outside it is not among them.
+
+| Field | Meaning |
+|---|---|
+| `title` | The piece, as its defenses name it. |
+| `defenses` | The places in `record.defenses` of the piece's sittings in this record: its remote attempts and its supervised ones, counting or not. |
+| `status` | `not_yet_verified`, `verified`, `more_evidence` or `not_verified`, as the student is shown it (below). |
+| `supervised`, `remote` | `{credit, n, sittings}` pooled from the sittings of that condition that count, or `null` when none does. |
+
+**A sitting's score** is its share of question credit. From a defense's `results`: `credit` = `checkedCorrect` + `explainedFull` + ½·`explainedPartial` + `episodicAccounted` + `historyConnected`; `n` = `checked` + `explained` + `episodic` + `history` + `late` + `skipped` (a late or skipped question was asked and earned nothing; `ungraded` is left out). A sitting with `n` = 0 is left out of the standing. Sittings of one condition are pooled by adding `credit` and `n`. The standard error of a pooled share is √(p̃(1−p̃)/n) with p̃ = (credit + ½)/(n + 1).
+
+**Which supervised sittings count:** a defense with `condition: 'supervised'` whose host's word is present and holds (§4.4.1, §4.4.2), and whose `statement.exceptions` names neither `left_room` nor `other_device`. `technical_fault` does not stop it counting.
+
+**The gap** is the remote share minus the supervised share, adjusted for the practice gain whichever condition was sat **second** gets anyway — 0.06 of credit added when the supervised sittings came second, subtracted when the remote ones did — and divided by √(SEᵣ² + SEₛ²). Which came second is read from the first sitting of each condition in the order of `record.defenses`, which lists attempts **newest first**; the record carries each attempt's day, never its time (§4.4). The practice gain is a prior from retest studies, to be replaced by a measured one; a change to it is a version of this document.
+
+**The status the rules give:**
+
+| Status | When |
+|---|---|
+| `not_yet_verified` | No supervised sitting counts. |
+| `verified` | At least one counts, and no request for more evidence is open. |
+| `more_evidence` | Exactly one counts, and the gap is above 2.3. |
+| `not_verified` | Two or more count, and the gap is above 3.1 (shown as *Not yet verified*, after two tries). |
+
+**What the student is shown.** A gap status reaches a student only once a person at Wizzad has reviewed it. Until then the record carries a milder status: `verified` in place of `more_evidence` or `not_verified`, or `more_evidence` in place of `not_verified`. Never a harsher one, and never `verified` where no supervised sitting counts.
+
+**The words.** *Verified* is only ever said with its definition: *Verified: confirmed in a supervised sitting hosted by <name> on <date>.* — the host and day of the latest supervised sitting that counts. A standing never says *cheating*, *suspicious* or *flagged*, and never names a finding.
+
+**Checking a standing** (`wizzad-record` does this in `src/standing.js`):
+
+1. Every place in `defenses` is a defense this record carries, and each has the standing's `title`.
+2. Recompute `supervised` and `remote` from those defenses as above — a supervised sitting counting only when its host's word verifies — and compare `credit`, `n` and `sittings`.
+3. Compute the gap and the status the rules give, and check the carried `status` is that status or a milder one as above.
+
+*Valid* here means: **this status is one the rules allow for these sittings.** It does not say how the student learned, nor anything the sittings do not show.
+
 ## 5. Signing
 
 ### 5.1 Canonical form
@@ -579,6 +617,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 * **What changed in v1.1.** A second rule for reading a notebook's own outputs (§4.3.2), which reads a cell that displays before it prints the same as a run of it, and the reproduction's `canon` field, which names the rule. Reproductions made before v1.1 carry no `canon` and are read by rule 1; their digests are unchanged, and so is how a run is read.
 * **Added within v1.1: time zones.** Optional `timeZone` fields on the record, each attempt, the brief, each deliverable, the reproduction and the model run (§3.1). They change no check: instants are UTC as before, and a record without them gives UTC days, as every record did.
 * **What changed in v1.2.** A sitting sat with a host in the room (§4.4.1): the optional `condition` and `supervised` fields on a defense, and inside `supervised` the host's own signed word, `attestation` — a WebAuthn assertion over a canonical-JSON statement, carried with the host's public key so that anyone can check it. This adds a second signature to check, made by a second party's key; it changes nothing about the record's own signature, keys or canonical form. Records issued before v1.2 carry none of these fields and are read as sat alone.
+* **What changed in v1.5.** Each piece's standing (§4.6): the optional `record.standings`, naming its sittings by their place in `defenses` with the credit it pooled and the status the student is shown, recomputable from the record alone. The order of `defenses` — newest first — is now part of what a verifier reads. Nothing about any signature, key or canonical form changes; records made before v1.5 carry no standings.
 * **What changed in v1.4.** The window's recording rule (§4.4.1): an optional `supervised.recording` — `none`, `camera` or `camera_screen`, as the host set it — carried beside the defense's own `capture` block so that the rule and what was in fact kept can be read side by side; and the same optional field in the host's statement, bound to the record's in step 6. Nothing about any signature, key or canonical form changes; records and words made before v1.4 carry no such field and check exactly as they did.
 * **What changed in v1.3.** A host's word may be given through Wizzad (§4.4.2): `attestation.method` of `'account'` or `'email'`, with `signedBy` — Wizzad's Ed25519 signature over the statement's canonical form under the record's own published keys — in place of the passkey assertion and key; `email` names the domain the link went to. A verifier checks such a word under the published keys and says it is Wizzad's word that the host gave it. Words given before v1.3 carry no `method` and check exactly as in v1.2.
 
@@ -595,5 +634,6 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 * Must not present an unchecked name (`setBy`, a credential's `name` identifier, a setter's answer `name`, a claim answerer's `name` or `relation`) as checked.
 * Must not present a host's word as Wizzad's, nor a host's `name` or `organisation` as checked: the word is the passkey holder's, and only the `domain` was confirmed (§4.4.1).
 * Must not read a `supervised` sitting without an `attestation` as failed, nor a sitting without `condition` as unsupervised in any sense stronger than *sat alone*.
+* Must not present a standing's gap as a finding about the student, nor show a status a record does not carry: a gap is a reason to sit again (§4.6).
 
 The record's own words carry these limits. Keep them beside any result you show.

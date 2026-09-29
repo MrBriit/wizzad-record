@@ -46,6 +46,16 @@ A host may instead give their word through Wizzad — signed in, they confirm th
 host     record.defenses[0] · Elena Marsh, Example College (example.edu) confirmed through their Wizzad account 2026-10-06T15:24:00.000Z · watched the whole sitting · Wizzad’s signature, key 798e…  · VALID (Wizzad’s word that the host gave it)
 ```
 
+
+## Check a standing
+
+A record may carry each piece's standing ([§4.6](PROFILE.md#46-the-standing)): what supervised sittings on that piece found, with its remote sittings beside them. `check` recomputes each one from the sittings the record carries — counting a supervised sitting only when its host's word holds — and prints one line per piece:
+
+```
+standing record.standings[0] · Osmosis lab · Verified · supervised 7 of 10 (1 sitting) · remote 10 of 10 (1 sitting) · gap +2.23 SE, supervised sat second · MATCHES its sittings
+```
+
+*Matches* means the status is one the rules allow for those sittings. A gap status reaches a student only after Wizzad has reviewed it, so a record may carry a milder status than its numbers would give — never a harsher one. A standing that does not match makes `check` exit 1.
 ## Check a credential
 
 ```bash

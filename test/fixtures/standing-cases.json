@@ -1,0 +1,376 @@
+{
+  "about": "Worked standings, one answer for the platform (src/lib/defend/standing-core.ts) and wizzad-record (src/standing.js). Each sitting: condition, sealedAt (ms), results (the record's own counts), and for a supervised sitting the host's word as given or not and its exceptions. Expected: status before review, which sittings pooled, and the gap in standard errors to two places.",
+  "practiceGain": 0.06,
+  "cases": [
+    {
+      "name": "nothing sat",
+      "sittings": [],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "no_supervised",
+        "z": null
+      }
+    },
+    {
+      "name": "remote only",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 6,
+            "checkedCorrect": 5,
+            "explained": 4,
+            "explainedFull": 2,
+            "explainedPartial": 1
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "no_supervised",
+        "z": null,
+        "remote": {
+          "credit": 7.5,
+          "n": 10
+        }
+      }
+    },
+    {
+      "name": "a supervised sitting awaiting the host's word",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 6,
+            "checkedCorrect": 4
+          },
+          "word": {
+            "given": false,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "awaiting_word",
+        "z": null
+      }
+    },
+    {
+      "name": "the host noted another device: it does not count",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 6,
+            "checkedCorrect": 4
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "other_device"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "exception",
+        "z": null
+      }
+    },
+    {
+      "name": "a technical fault still counts",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 6,
+            "checkedCorrect": 4
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "technical_fault"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": null,
+        "supervised": {
+          "credit": 4,
+          "n": 6
+        }
+      }
+    },
+    {
+      "name": "remote then supervised, close: verified",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 7
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 7
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": 0.29,
+        "second": "supervised"
+      }
+    },
+    {
+      "name": "remote far above one supervised sitting: more evidence",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "more_evidence",
+        "pending": null,
+        "z": 4.71,
+        "second": "supervised"
+      }
+    },
+    {
+      "name": "the same scores, remote sat second: the practice gain counts against the remote lead",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "remote",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          }
+        }
+      ],
+      "expect": {
+        "status": "more_evidence",
+        "pending": null,
+        "z": 3.97,
+        "second": "remote"
+      }
+    },
+    {
+      "name": "two supervised sittings, the gap stays above 3.1: not yet verified, after two tries",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 12,
+            "checkedCorrect": 12
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 3000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 4
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_verified",
+        "pending": null,
+        "z": 5.88,
+        "supervised": {
+          "credit": 7,
+          "n": 20
+        }
+      }
+    },
+    {
+      "name": "two supervised sittings, a gap between 2.3 and 3.1: verified",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 9
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 6
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 3000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 6
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": 2.33
+      }
+    },
+    {
+      "name": "late and skipped questions count as asked, ungraded ones do not; a sitting with nothing counted is left out",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 4,
+            "late": 2,
+            "skipped": 2,
+            "ungraded": 5
+          }
+        },
+        {
+          "key": 1,
+          "condition": "remote",
+          "sealedAt": 1500,
+          "results": {
+            "ungraded": 9
+          }
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 2,
+            "explained": 4,
+            "explainedFull": 1,
+            "explainedPartial": 2,
+            "episodic": 1,
+            "episodicAccounted": 1,
+            "history": 1,
+            "historyConnected": 0
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "remote": {
+          "credit": 4,
+          "n": 8
+        },
+        "supervised": {
+          "credit": 5,
+          "n": 10
+        },
+        "keys": {
+          "remote": [
+            0
+          ],
+          "supervised": [
+            2
+          ]
+        }
+      }
+    }
+  ]
+}
