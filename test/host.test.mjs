@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash, generateKeyPairSync, sign as nodeSign } from 'node:crypto';
-import { verifyHostWord, hostWordsIn, hostWordLine, hostWordMethod, hostChallengeOf, keyIdOfSpki, canonicalJson, keyRing } from '../src/index.js';
+import { verifyHostWord, hostWordsIn, hostWordLine, hostWordMethod, hostChallengeOf, keyIdOfSpki, canonicalJson, keyRing, recordingRuleWords } from '../src/index.js';
 
 const fx = (n) => JSON.parse(readFileSync(new URL(`./fixtures/${n}`, import.meta.url), 'utf8'));
 // A sitting the platform's own integration run sealed and a host signed (a real assertion from a real key pair):
@@ -114,4 +114,32 @@ test('a word given through Wizzad is never valid without the keys, under an unkn
   assert.match(hostWordLine({ path: 'p', defense, word: att }), /NOT VALID/);
   // A passkey word ignores the keys: it carries its own.
   assert.equal(verifyHostWord(defense.supervised.attestation, defense, keys).valid, true);
+});
+
+// ─── v1.4: the window's recording rule, beside what the sitting carries ───────
+
+test('the window’s recording rule reads beside what the sitting in fact carries, and a statement that names the rule is bound to the record’s', () => {
+  const cap = { camera: { sha256: 'c'.repeat(64), bytes: 10, mime: 'video/webm', seconds: 1800 } };
+  // No rule, nothing said — a record made before v1.4, or a window that recorded nothing.
+  assert.equal(recordingRuleWords(defense), '');
+  assert.equal(recordingRuleWords({ ...defense, supervised: { ...defense.supervised, recording: 'none' }, capture: cap }), '');
+  assert.equal(recordingRuleWords({ ...defense, supervised: { ...defense.supervised, recording: 'camera_screen' }, capture: cap }), 'window required camera and screen; sitting carries the camera only');
+  assert.equal(recordingRuleWords({ ...defense, supervised: { ...defense.supervised, recording: 'camera_screen' }, capture: { ...cap, screen: cap.camera } }), 'window required camera and screen; sitting carries both');
+  assert.equal(recordingRuleWords({ ...defense, supervised: { ...defense.supervised, recording: 'camera_screen' } }), 'window required camera and screen; sitting carries no recording');
+  assert.equal(recordingRuleWords({ ...defense, supervised: { ...defense.supervised, recording: 'camera' }, capture: cap }), 'window required the camera; sitting carries it');
+  // A word given before the rule existed still checks against a record that carries one; the line carries the rule.
+  const recorded = { ...defense, supervised: { ...defense.supervised, recording: 'camera_screen' }, capture: cap };
+  assert.equal(verifyHostWord(defense.supervised.attestation, recorded).valid, true);
+  const line = hostWordLine({ path: 'p', defense: recorded, word: defense.supervised.attestation });
+  assert.match(line, /window required camera and screen; sitting carries the camera only · key/);
+  assert.match(hostWordLine({ path: 'p', defense: recorded, word: null }), /sitting carries the camera only · awaiting the host’s word$/);
+  // A word through Wizzad that names the rule: bound to the record's, a mismatch or an unknown rule is refused by name.
+  const { att, keys } = wizzadWord('account', { statement: { recording: 'camera_screen' } });
+  const r = verifyHostWord(att, recorded, keys);
+  assert.equal(r.valid, true, r.reason);
+  assert.equal(r.recording, 'camera_screen');
+  assert.match(verifyHostWord(att, { ...recorded, supervised: { ...recorded.supervised, recording: 'camera' } }, keys).reason, /another recording rule/);
+  assert.equal(verifyHostWord(att, defense, keys).valid, true, 'a record without the field binds nothing on it');
+  const odd = wizzadWord('account', { statement: { recording: 'audio' } });
+  assert.match(verifyHostWord(odd.att, recorded, odd.keys).reason, /unknown recording rule/);
 });

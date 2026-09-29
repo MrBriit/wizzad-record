@@ -54,10 +54,15 @@ function shapedWizzad(att) {
   return true;
 }
 
+const RECORDINGS = ['none', 'camera', 'camera_screen'];
+
 function bound(s, e) {
   if (e.recordId !== undefined && s.recordId !== e.recordId) return 'names another record';
   if (e.windowId !== undefined && s.windowId !== e.windowId) return 'names another window';
   if (e.attempt !== undefined && s.piece.attempt !== e.attempt) return 'names another attempt';
+  // Since v1.4 the statement may name the window's recording rule; where both it and the record do, they agree.
+  if (s.recording !== undefined && !RECORDINGS.includes(s.recording)) return 'names an unknown recording rule';
+  if (s.recording !== undefined && e.recording !== undefined && e.recording !== null && s.recording !== e.recording) return 'names another recording rule';
   if (e.hostDomain !== undefined && e.hostDomain !== null && s.host.domain !== e.hostDomain) return 'names another host';
   return null;
 }
@@ -80,10 +85,10 @@ function verifyWizzadWord(att, expect, keys) {
   try { ok = nodeVerify(null, Buffer.from(canonicalJson(att.statement), 'utf8'), publicKeyObject(raw), bytes); } catch { ok = false; }
   if (!ok) return fail('the signature does not hold');
   const s = att.statement;
-  const e = expect?.supervised ? { recordId: expect.id, windowId: expect.supervised.windowId, attempt: expect.attempt, hostDomain: expect.supervised.host?.domain } : expect ?? {};
+  const e = expect?.supervised ? { recordId: expect.id, windowId: expect.supervised.windowId, attempt: expect.attempt, hostDomain: expect.supervised.host?.domain, recording: expect.supervised.recording } : expect ?? {};
   const b = bound(s, e);
   if (b) return fail(b);
-  return { valid: true, method: att.method, keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, email: att.email ?? null };
+  return { valid: true, method: att.method, keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, recording: s.recording ?? null, email: att.email ?? null };
 }
 
 /** The challenge for a statement: its canonical JSON, hashed, base64url. */
@@ -145,10 +150,10 @@ export function verifyHostWord(att, expect = {}, keys = null) {
   try { key = createPublicKey({ key: Buffer.from(att.key.spki, 'base64'), format: 'der', type: 'spki' }); } catch { return fail('the key does not parse'); }
   if (keyIdOfSpki(att.key.spki) !== att.key.keyId) return fail('the key id is not the key’s');
   if (!holds(att.key.alg, key, Buffer.concat([authData, sha256(cdj)]), b64u(att.assertion.signature))) return fail('the signature does not hold');
-  const e = expect?.supervised ? { recordId: expect.id, windowId: expect.supervised.windowId, attempt: expect.attempt, hostDomain: expect.supervised.host?.domain } : expect;
+  const e = expect?.supervised ? { recordId: expect.id, windowId: expect.supervised.windowId, attempt: expect.attempt, hostDomain: expect.supervised.host?.domain, recording: expect.supervised.recording } : expect;
   const b = bound(s, e);
   if (b) return fail(b);
-  return { valid: true, method: 'passkey', keyId: att.key.keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null };
+  return { valid: true, method: 'passkey', keyId: att.key.keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, recording: s.recording ?? null };
 }
 
 /** Every sitting sat with a host in a proof payload, with its word where given: `[{ path, defense, word }]`. */
@@ -162,16 +167,35 @@ export function hostWordsIn(payload) {
   return out;
 }
 
+/**
+ * The window's recording rule beside what the sitting in fact carries (§4.4.1, since v1.4): "window required camera and
+ * screen; sitting carries both" — or, honestly, "carries the camera only", "carries no recording". Empty where the
+ * window recorded nothing.
+ */
+export function recordingRuleWords(defense) {
+  const rule = defense?.supervised?.recording;
+  if (!rule || rule === 'none') return '';
+  const c = defense.capture ?? {};
+  const has = [c.camera ? 'camera' : null, c.screen ? 'screen' : null].filter(Boolean);
+  const required = rule === 'camera' ? 'the camera' : 'camera and screen';
+  const carries = has.length === 0 ? 'carries no recording'
+    : has.length === 2 ? (rule === 'camera' ? 'carries both the camera and the screen' : 'carries both')
+    : rule === 'camera' && has[0] === 'camera' ? 'carries it'
+    : `carries the ${has[0]} only`;
+  return `window required ${required}; sitting ${carries}`;
+}
+
 /** The host's word in one line, for the eye. `keys` as for verifyHostWord. */
 export function hostWordLine(entry, keys = null) {
   const d = entry.defense;
   const h = d.supervised?.host;
   const who = h ? `${h.name}${h.organisation ? `, ${h.organisation}` : ''} (${h.domain})` : 'a host';
-  if (!entry.word) return `${entry.path} · sat with ${who} · awaiting the host’s word`;
+  const rule = recordingRuleWords(d);
+  if (!entry.word) return `${entry.path} · sat with ${who}${rule ? ` · ${rule}` : ''} · awaiting the host’s word`;
   const r = verifyHostWord(entry.word, d, keys);
   if (!r.valid) return `${entry.path} · sat with ${who} · host’s word NOT VALID — ${r.reason}`;
   const ex = r.exceptions.map((x) => EXCEPTION_WORDS[x] ?? x);
-  const saw = `watched the whole sitting${ex.length ? `, though ${ex.join('; ')}` : ''}${r.note ? ` · note: “${r.note}”` : ''}`;
+  const saw = `watched the whole sitting${ex.length ? `, though ${ex.join('; ')}` : ''}${r.note ? ` · note: “${r.note}”` : ''}${rule ? ` · ${rule}` : ''}`;
   if (r.method === 'passkey') return `${entry.path} · ${who} signed ${r.signedAt} · ${saw} · key ${r.keyId} · VALID`;
   const how = r.method === 'account' ? 'confirmed through their Wizzad account' : `confirmed by a link to their school address at ${r.email?.domain ?? h?.domain ?? '?'}`;
   return `${entry.path} · ${who} ${how} ${r.signedAt} · ${saw} · Wizzad’s signature, key ${r.keyId} · VALID (Wizzad’s word that the host gave it)`;

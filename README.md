@@ -36,6 +36,8 @@ host     record.defenses[0] · Elena Marsh, Example College (example.edu) signed
 host     record.defenses[1] · sat with Elena Marsh, Example College (example.edu) · awaiting the host’s word
 ```
 
+Where the host's window recorded the sitting, the line sets the rule beside what the sitting carries — `window required camera and screen; sitting carries both`, or, honestly, `sitting carries the camera only` ([§4.4.1](PROFILE.md#441-a-sitting-with-a-host-in-the-room), v1.4).
+
 *Valid* means the holder of that passkey signed those words about that sitting — see [the standard, §4.4.1](PROFILE.md#441-a-sitting-with-a-host-in-the-room) for what it does and does not say. A word that does not hold makes `check` exit 1.
 
 A host may instead give their word through Wizzad — signed in, they confirm the statement, or they open a one-time link sent to their confirmed school address — and Wizzad signs the statement with the record's own key ([§4.4.2](PROFILE.md#442-a-word-given-through-wizzad)). `check` then checks Wizzad's signature under the published keys and says so in the line: it is Wizzad's word that the host gave it, not the host's own key.
