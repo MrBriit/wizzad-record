@@ -68,7 +68,9 @@ test('a record’s standings recompute from its sittings, with the host’s word
   assert.equal(Math.round(r0.gap.z * 100) / 100, 2.23); // by hand: (0.30 + 0.06) / 0.1613 — just under 2.3, so Verified
   assert.equal(verifyStanding(entries[1].standing, p.record.defenses, keys).valid, true);
   const line = standingLine(entries[0], p.record.defenses, keys);
-  assert.match(line, /^record\.standings\[0\] · Osmosis lab · Verified · supervised 7 of 10 \(1 sitting\) · remote 10 of 10 \(1 sitting\) · gap \+2\.23 SE, supervised sat second · MATCHES its sittings$/);
+  // The pools, not the gap (0.6.1): the line never states what a review has not released.
+  assert.match(line, /^record\.standings\[0\] · Osmosis lab · Verified · supervised 7 of 10 \(1 sitting\) · remote 10 of 10 \(1 sitting\) · MATCHES its sittings$/);
+  assert.doesNotMatch(line, /gap|SE/);
 });
 
 test('a standing is not valid when it claims more than its sittings give, names the wrong sittings, or its word cannot be counted', () => {
@@ -81,7 +83,10 @@ test('a standing is not valid when it claims more than its sittings give, names 
   assert.match(verifyStanding({ ...osmosis, remote: null }, p.record.defenses, keys).reason, /remote credit/);
   // A place the record does not have, or another piece's sitting.
   assert.match(verifyStanding({ ...osmosis, defenses: [0, 9] }, p.record.defenses, keys).reason, /does not carry/);
-  assert.match(verifyStanding({ ...osmosis, defenses: [0, 1] }, p.record.defenses, keys).reason, /another piece/);
+  // Another piece's sitting in the list: its credit is not this standing's.
+  assert.match(verifyStanding({ ...osmosis, defenses: [0, 1] }, p.record.defenses, keys).reason, /credit/);
+  assert.match(verifyStanding({ ...osmosis, defenses: [0, 0, 2] }, p.record.defenses, keys).reason, /twice/);
+  assert.match(verifyStanding({ ...osmosis, title: 'Something else' }, p.record.defenses, keys).reason, /newest sitting/);
   // A host's word given through Wizzad needs the published keys to count.
   assert.match(verifyStanding(osmosis, p.record.defenses, null).reason, /published keys/);
   // A touched word does not hold, so the sitting does not count, so Verified does not hold either.
@@ -103,6 +108,15 @@ test('shadow mode: a remote score far above the supervised one may be carried as
   assert.match(verifyStanding({ ...base, status: 'not_verified' }, defenses, keys).reason, /status/);
   // The line prints the numbers, never the status a review has not released.
   const line = standingLine({ path: 'p', standing: { ...base, status: 'verified' } }, defenses, keys);
-  assert.match(line, /gap \+4\.71 SE/);
-  assert.doesNotMatch(line, /More evidence/);
+  assert.match(line, /supervised 3 of 10 \(1 sitting\) · remote 10 of 10 \(1 sitting\) · MATCHES/);
+  assert.doesNotMatch(line, /More evidence|gap/);
+});
+
+test('0.6.1: a piece renamed between sittings is one standing, titled as its newest sitting — its older sittings keep their earlier title', () => {
+  const renamed = [supervised('rec-3', 'Osmosis lab', 7, 10, []), remote('rec-1', 'Untitled', 10, 10)];
+  const standing = { title: 'Osmosis lab', defenses: [0, 1], status: 'verified', supervised: { credit: 7, n: 10, sittings: 1 }, remote: { credit: 10, n: 10, sittings: 1 } };
+  const r = verifyStanding(standing, renamed, keys);
+  assert.equal(r.valid, true, r.reason);
+  // Titled by the older name, it is not the record's standing.
+  assert.match(verifyStanding({ ...standing, title: 'Untitled' }, renamed, keys).reason, /newest sitting carries \("Osmosis lab"\)/);
 });

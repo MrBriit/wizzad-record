@@ -13,8 +13,12 @@
  *
  * A gap status reaches a student only once a person at Wizzad has reviewed it, so a record may carry a milder status
  * than the rules give (Verified in place of either gap status; More evidence requested in place of the second) — never
- * a harsher one, and never Verified where no supervised sitting counts. This checks exactly that, and prints the
- * numbers, not the status a review has not released.
+ * a harsher one, and never Verified where no supervised sitting counts. This checks exactly that. Its line prints the
+ * pooled credit, not the gap, and never a status a review has not released: shadow mode withholds the label, not the
+ * numbers, which are in the record for anyone to read (§4.6).
+ *
+ * A piece renamed between sittings is still one piece: the standing is titled as its NEWEST named sitting titles it,
+ * and its older sittings may carry an earlier title (0.6.1; 0.6.0 wrongly refused them).
  *
  * The arithmetic is the platform's own (apps/platform lib/defend/standing-core.ts); test/fixtures/standing-cases.json
  * holds both to one answer.
@@ -119,11 +123,12 @@ export function verifyStanding(standing, defenses, keys = null) {
   const fail = (reason) => ({ valid: false, reason });
   if (!standing || typeof standing !== 'object' || typeof standing.title !== 'string' || !Array.isArray(standing.defenses) || !STATUS_WORDS[standing.status]) return fail('not a standing');
   const list = Array.isArray(defenses) ? defenses : [];
+  if (standing.defenses.length === 0) return fail('names no defense');
+  if (new Set(standing.defenses).size !== standing.defenses.length) return fail('names a defense twice');
   const sittings = [];
   for (const i of standing.defenses) {
     const d = Number.isInteger(i) ? list[i] : undefined;
     if (!d) return fail(`names a defense the record does not carry (${i})`);
-    if (d.title !== standing.title) return fail(`names a defense of another piece (${i}: ${d.title})`);
     const supervised = d.condition === 'supervised';
     let word;
     if (supervised) {
@@ -137,6 +142,9 @@ export function verifyStanding(standing, defenses, keys = null) {
     }
     sittings.push({ key: i, condition: supervised ? 'supervised' : 'remote', sealedAt: list.length - i, results: d.results, ...(word ? { word } : {}) });
   }
+  // Titled as its newest named sitting (the lowest place: `defenses` is newest first) titles the piece.
+  const newest = list[Math.min(...standing.defenses)];
+  if (newest.title !== standing.title) return fail(`its title is not the one its newest sitting carries ("${newest.title}")`);
   const s = standingOf(sittings);
   const pick = (p) => (p ? { credit: p.credit, n: p.n, sittings: p.sittings } : null);
   const out = { status: standing.status, supervised: pick(s.supervised), remote: pick(s.remote), gap: s.gap };
@@ -152,10 +160,10 @@ export function verifyStanding(standing, defenses, keys = null) {
 export function standingLine(entry, defenses, keys = null) {
   const st = entry.standing ?? {};
   const r = verifyStanding(st, defenses, keys);
+  // The pools, not the gap: a line that printed a gap past a threshold would say a status no review has released.
   const pools = [
     r.supervised ? `supervised ${r.supervised.credit} of ${r.supervised.n} (${r.supervised.sittings} sitting${r.supervised.sittings === 1 ? '' : 's'})` : 'no supervised sitting counts',
     r.remote ? `remote ${r.remote.credit} of ${r.remote.n} (${r.remote.sittings} sitting${r.remote.sittings === 1 ? '' : 's'})` : null,
-    r.gap ? `gap ${r.gap.z >= 0 ? '+' : ''}${r.gap.z.toFixed(2)} SE, ${r.gap.second} sat second` : null,
   ].filter(Boolean).join(' · ');
   const head = `${entry.path} · ${st.title ?? '?'} · ${STATUS_WORDS[st.status] ?? st.status}`;
   return r.valid ? `${head} · ${pools} · MATCHES its sittings` : `${head} · NOT VALID — ${r.reason}`;

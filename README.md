@@ -52,10 +52,10 @@ host     record.defenses[0] · Elena Marsh, Example College (example.edu) confir
 A record may carry each piece's standing ([§4.6](PROFILE.md#46-the-standing)): what supervised sittings on that piece found, with its remote sittings beside them. `check` recomputes each one from the sittings the record carries — counting a supervised sitting only when its host's word holds — and prints one line per piece:
 
 ```
-standing record.standings[0] · Osmosis lab · Verified · supervised 7 of 10 (1 sitting) · remote 10 of 10 (1 sitting) · gap +2.23 SE, supervised sat second · MATCHES its sittings
+standing record.standings[0] · Osmosis lab · Verified · supervised 7 of 10 (1 sitting) · remote 10 of 10 (1 sitting) · MATCHES its sittings
 ```
 
-*Matches* means the status is one the rules allow for those sittings. A gap status reaches a student only after Wizzad has reviewed it, so a record may carry a milder status than its numbers would give — never a harsher one. A standing that does not match makes `check` exit 1.
+*Matches* means the status is one the rules allow for those sittings. A gap status reaches a student only after Wizzad has reviewed it, so a record may carry a milder status than its numbers would give — never a harsher one. The line prints the pooled credit, not the gap, so it never states a status a review has not released; the numbers are in the record for anyone to compute (§4.6). A piece renamed between sittings is one standing, titled as its newest sitting. A standing that does not match makes `check` exit 1.
 ## Check a credential
 
 ```bash
