@@ -1,8 +1,8 @@
-# The Defended Work Standard — v1.2
+# The Defended Work Standard — v1.3
 
 *What a piece of defended work is, what its signed record says about each of its five parts, and how anyone can check each part without asking Wizzad.*
 
-Status: v1.2, 28 September 2026. v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
+Status: v1.3, 28 September 2026. v1.3 adds two ways a host may give their word through Wizzad (§4.4.2), each disclosed on the record and checked under Wizzad's published keys; every word given before it reads exactly as it did. v1.2 added the sitting with a host in the room (§4.4.1). v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
 
 ## 1. The standard on one page
 
@@ -442,6 +442,26 @@ A sitting may be sat with a **host** in the same room: a person at the student's
 
 *Valid* here means: **the holder of that passkey signed those words about that sitting.** It does not say who the holder is. The platform admitted the account to hosting after confirming a school address at `domain`; the name and organisation are the host's own entry. The attestation is carried inside the record's payload, so the record's signature (§5) covers the copy the platform kept; the host's signature is the host's own and is checked separately. A record whose sitting was `supervised` but carries no `attestation` is awaiting the host's word — not a failed check, and not a sitting sat alone.
 
+#### 4.4.2 A word given through Wizzad
+
+The passkey is the default and the stronger form. A host may instead give the same word **through Wizzad**, in one of two ways, and the record says which:
+
+* **`method: 'account'`** — the host, signed in to their Wizzad account, read the statement and confirmed it.
+* **`method: 'email'`** — Wizzad sent a one-time link to the school address the host had confirmed; the host opened it, signed in, and confirmed the statement. `email` = `{domain, confirmedAt}` names the address's domain and when the link was opened.
+
+In both, **`supervised.attestation`** is:
+
+| Field | Meaning |
+|---|---|
+| `method` | `'account'` or `'email'`. A passkey word carries no `method`. |
+| `statement` | The same statement as §4.4.1, canonical JSON (§5.1). |
+| `signedBy` = `{algorithm, keyId, signature}` | **Wizzad's** Ed25519 signature over the UTF-8 bytes of the canonical form of `statement` — the record's own key and rule (§5.2), `signature` base64url. |
+| `email` | `method: 'email'` only: `{domain, confirmedAt}`. |
+
+**Checking it:** find `signedBy.keyId` among the published keys (§6) — refuse a revoked or absent key — and verify the Ed25519 signature over the canonical form of `statement`; then bind the statement to the sitting as in §4.4.1 step 6.
+
+*Valid* here means: **Wizzad signed these words, and says the host gave them that way.** It is Wizzad's word, not the host's own key — the same trust as the record itself, and no more. A verifier must print which form it checked, and never call a word given through Wizzad the host's own signature.
+
 ### 4.5 Part V: the record
 
 The parts above are fields of one payload, signed as a whole (§5). A task a reader set, and the student defended, is also issued as an Open Badges 3.0 credential (§7). The record is the student's to issue and to withdraw. A withdrawn or expired link stops serving the record; it never changes what was signed.
@@ -558,6 +578,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 * **What changed in v1.1.** A second rule for reading a notebook's own outputs (§4.3.2), which reads a cell that displays before it prints the same as a run of it, and the reproduction's `canon` field, which names the rule. Reproductions made before v1.1 carry no `canon` and are read by rule 1; their digests are unchanged, and so is how a run is read.
 * **Added within v1.1: time zones.** Optional `timeZone` fields on the record, each attempt, the brief, each deliverable, the reproduction and the model run (§3.1). They change no check: instants are UTC as before, and a record without them gives UTC days, as every record did.
 * **What changed in v1.2.** A sitting sat with a host in the room (§4.4.1): the optional `condition` and `supervised` fields on a defense, and inside `supervised` the host's own signed word, `attestation` — a WebAuthn assertion over a canonical-JSON statement, carried with the host's public key so that anyone can check it. This adds a second signature to check, made by a second party's key; it changes nothing about the record's own signature, keys or canonical form. Records issued before v1.2 carry none of these fields and are read as sat alone.
+* **What changed in v1.3.** A host's word may be given through Wizzad (§4.4.2): `attestation.method` of `'account'` or `'email'`, with `signedBy` — Wizzad's Ed25519 signature over the statement's canonical form under the record's own published keys — in place of the passkey assertion and key; `email` names the domain the link went to. A verifier checks such a word under the published keys and says it is Wizzad's word that the host gave it. Words given before v1.3 carry no `method` and check exactly as in v1.2.
 
 ## 10. What a verifier must not do
 

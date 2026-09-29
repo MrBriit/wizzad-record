@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash, generateKeyPairSync, sign as nodeSign } from 'node:crypto';
-import { verifyHostWord, hostWordsIn, hostWordLine, hostChallengeOf, keyIdOfSpki, canonicalJson } from '../src/index.js';
+import { verifyHostWord, hostWordsIn, hostWordLine, hostWordMethod, hostChallengeOf, keyIdOfSpki, canonicalJson, keyRing } from '../src/index.js';
 
 const fx = (n) => JSON.parse(readFileSync(new URL(`./fixtures/${n}`, import.meta.url), 'utf8'));
 // A sitting the platform's own integration run sealed and a host signed (a real assertion from a real key pair):
@@ -59,4 +59,59 @@ test('the sittings sat with a host in a proof payload, each with its word or awa
   assert.match(hostWordLine(entries[0]), /watched the whole sitting, though the student left the room/);
   assert.match(hostWordLine(entries[1]), /awaiting the host’s word$/);
   assert.match(hostWordLine({ ...entries[0], word: { ...entries[0].word, challenge: 'x' } }), /NOT VALID/);
+});
+
+// ─── §4.4.2: a word given through Wizzad ─────────────────────────────────────
+
+function wizzadWord(method, over = {}) {
+  const pair = generateKeyPairSync('ed25519');
+  const spki = pair.publicKey.export({ type: 'spki', format: 'der' });
+  const keyId = createHash('sha256').update(spki).digest('hex').slice(0, 16);
+  const keys = { keys: [{ keyId, algorithm: 'Ed25519', publicKey: spki.toString('base64') }] };
+  const statement = { ...defense.supervised.attestation.statement, signedAt: '2026-10-06T16:00:00.000Z', note: null, exceptions: [], ...over.statement };
+  const signature = nodeSign(null, Buffer.from(canonicalJson(statement), 'utf8'), pair.privateKey).toString('base64url');
+  const att = { method, statement, signedBy: { algorithm: 'Ed25519', keyId, signature }, ...(method === 'email' ? { email: { domain: 'example.edu', confirmedAt: '2026-10-06T16:00:00.000Z' } } : {}) };
+  return { att, keys, keyId, pair };
+}
+
+test('a word confirmed through the host’s Wizzad account verifies under Wizzad’s published keys, and says it is Wizzad’s word', () => {
+  const { att, keys, keyId } = wizzadWord('account');
+  const r = verifyHostWord(att, defense, keys);
+  assert.equal(r.valid, true, r.reason);
+  assert.equal(r.method, 'account');
+  assert.equal(r.keyId, keyId);
+  assert.equal(hostWordMethod(att), 'account');
+  assert.equal(hostWordMethod(defense.supervised.attestation), 'passkey');
+  // The ring form works as well as the reply form.
+  assert.equal(verifyHostWord(att, defense, keyRing(keys)).valid, true);
+  const line = hostWordLine({ path: 'record.defenses[0]', defense, word: att }, keys);
+  assert.match(line, /confirmed through their Wizzad account 2026-10-06T16:00:00.000Z/);
+  assert.match(line, /Wizzad’s signature, key/);
+  assert.match(line, /VALID \(Wizzad’s word that the host gave it\)$/);
+  assert.doesNotMatch(line, /signed 2026/);
+});
+
+test('a word confirmed by a link to the host’s school address names the domain the link went to', () => {
+  const { att, keys } = wizzadWord('email');
+  const r = verifyHostWord(att, defense, keys);
+  assert.equal(r.valid, true, r.reason);
+  assert.equal(r.method, 'email');
+  assert.deepEqual(r.email, { domain: 'example.edu', confirmedAt: '2026-10-06T16:00:00.000Z' });
+  assert.match(hostWordLine({ path: 'p', defense, word: att }, keys), /confirmed by a link to their school address at example.edu/);
+  // Without the address it is not shaped.
+  assert.match(verifyHostWord({ ...att, email: undefined }, defense, keys).reason, /not an attestation/);
+});
+
+test('a word given through Wizzad is never valid without the keys, under an unknown key, with a changed statement or a touched signature, or bound to another sitting', () => {
+  const { att, keys } = wizzadWord('account');
+  assert.match(verifyHostWord(att, defense).reason, /published keys/);
+  assert.match(verifyHostWord(att, defense, { keys: [] }).reason, /not among the published keys/);
+  assert.match(verifyHostWord({ ...att, statement: { ...att.statement, note: 'Changed.' } }, defense, keys).reason, /does not hold/);
+  const sig = Buffer.from(att.signedBy.signature, 'base64url'); sig[3] ^= 1;
+  assert.match(verifyHostWord({ ...att, signedBy: { ...att.signedBy, signature: sig.toString('base64url') } }, defense, keys).reason, /does not hold/);
+  assert.match(verifyHostWord(att, { ...defense, id: 'rec-other' }, keys).reason, /another record/);
+  assert.match(verifyHostWord({ ...att, signedBy: { ...att.signedBy, algorithm: 'ES256' } }, defense, keys).reason, /not an attestation/);
+  assert.match(hostWordLine({ path: 'p', defense, word: att }), /NOT VALID/);
+  // A passkey word ignores the keys: it carries its own.
+  assert.equal(verifyHostWord(defense.supervised.attestation, defense, keys).valid, true);
 });

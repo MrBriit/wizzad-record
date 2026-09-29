@@ -75,10 +75,11 @@ async function main() {
     if (p.recordId) console.log(`record   ${p.recordId}`);
     const fps = fingerprintsIn(p);
     if (fps.length) console.log(`files    ${fps.length} fingerprint(s) on record: ${fps.map((f) => `${f.path} = ${f.sha256.slice(0, 12)}…`).join('; ')}`);
-    // Sittings sat with a host in the room (§4.4.1): the host's own signed word, checked under the host's key — or awaited.
+    // Sittings sat with a host in the room (§4.4.1): the host's own signed word, checked under the host's key — or, given
+    // through Wizzad (§4.4.2), under Wizzad's published keys — or awaited.
     const hosted = hostWordsIn(p);
-    for (const e of hosted) console.log(`host     ${hostWordLine(e)}`);
-    const hostWordsHold = hosted.every((e) => !e.word || verifyHostWord(e.word, e.defense).valid);
+    for (const e of hosted) console.log(`host     ${hostWordLine(e, ring)}`);
+    const hostWordsHold = hosted.every((e) => !e.word || verifyHostWord(e.word, e.defense, ring).valid);
     process.exit(r.valid && hostWordsHold ? 0 : 1);
   }
   if (cmd === 'credential' && positional[0]) {
