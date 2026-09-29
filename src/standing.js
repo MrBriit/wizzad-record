@@ -67,9 +67,12 @@ function pool(sittings) {
   return score.share === null ? null : { ...score, sittings: sittings.length };
 }
 
-/** Whether a supervised sitting counts: its host's word given, no exception touching who did the work. */
+/**
+ * Whether a supervised sitting counts: its host's word given, no exception touching who did the work, and (v1.6) not
+ * hosted by a reader who asked for it — such a sitting is named, never counted (§4.6).
+ */
 export function supervisedCounts(s) {
-  return s.condition === 'supervised' && !!s.word?.given && !(s.word.exceptions ?? []).some((e) => INTEGRITY_EXCEPTIONS.includes(e));
+  return s.condition === 'supervised' && s.readerHosted !== true && !!s.word?.given && !(s.word.exceptions ?? []).some((e) => INTEGRITY_EXCEPTIONS.includes(e));
 }
 
 /**
@@ -85,7 +88,8 @@ export function standingOf(all, gain = PRACTICE_GAIN) {
   const keys = { supervised: counting.map((s) => s.key), remote: remoteSittings.map((s) => s.key) };
   if (!supervised) {
     const any = sittings.filter((s) => s.condition === 'supervised');
-    const pending = any.length === 0 ? 'no_supervised' : any.some((s) => !s.word?.given) ? 'awaiting_word' : 'exception';
+    const admitted = any.filter((s) => s.readerHosted !== true);
+    const pending = any.length === 0 ? 'no_supervised' : admitted.some((s) => !s.word?.given) ? 'awaiting_word' : admitted.length === 0 ? 'reader_hosted' : 'exception';
     return { status: 'not_yet_verified', pending, supervised: null, remote, gap: null, keys };
   }
   if (!remote) return { status: 'verified', pending: null, supervised, remote: null, gap: null, keys };
@@ -140,7 +144,7 @@ export function verifyStanding(standing, defenses, keys = null) {
         word = { given: w.valid, exceptions: w.valid ? (w.exceptions ?? []) : [] };
       }
     }
-    sittings.push({ key: i, condition: supervised ? 'supervised' : 'remote', sealedAt: list.length - i, results: d.results, ...(word ? { word } : {}) });
+    sittings.push({ key: i, condition: supervised ? 'supervised' : 'remote', sealedAt: list.length - i, results: d.results, ...(word ? { word } : {}), ...(supervised && d.supervised?.readerHosted === true ? { readerHosted: true } : {}) });
   }
   // Titled as its newest named sitting (the lowest place: `defenses` is newest first) titles the piece.
   const newest = list[Math.min(...standing.defenses)];

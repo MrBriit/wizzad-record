@@ -189,7 +189,9 @@ export function recordingRuleWords(defense) {
 export function hostWordLine(entry, keys = null) {
   const d = entry.defense;
   const h = d.supervised?.host;
-  const who = h ? `${h.name}${h.organisation ? `, ${h.organisation}` : ''} (${h.domain})` : 'a host';
+  // v1.6: a reader of the record who asked for this sitting and hosted it is said to be one.
+  const reader = d.supervised?.readerHosted === true ? ', a reader who asked for it' : '';
+  const who = h ? `${h.name}${h.organisation ? `, ${h.organisation}` : ''} (${h.domain}${reader})` : `a host${reader}`;
   const rule = recordingRuleWords(d);
   if (!entry.word) return `${entry.path} · sat with ${who}${rule ? ` · ${rule}` : ''} · awaiting the host’s word`;
   const r = verifyHostWord(entry.word, d, keys);

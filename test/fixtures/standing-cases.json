@@ -371,6 +371,76 @@
           ]
         }
       }
+    },
+    {
+      "name": "v1.6: the only supervised sitting was hosted by a reader who asked for it — named, never counted",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 9
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 8
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          },
+          "readerHosted": true
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "reader_hosted",
+        "z": null
+      }
+    },
+    {
+      "name": "v1.6: a reader-hosted sitting beside one with an admitted host — only the admitted one counts",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 7
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 2
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          },
+          "readerHosted": true
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": null
+      }
     }
   ]
 }

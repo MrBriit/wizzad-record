@@ -100,6 +100,20 @@ test('a standing is not valid when it claims more than its sittings give, names 
   assert.equal(verifyStanding(null, p.record.defenses, keys).valid, false);
 });
 
+test('v1.6: a sitting hosted by the reader who asked for it — a word given, nothing noted — counts in neither pool; a standing that counts it is not valid', () => {
+  const p = record();
+  const [osmosis] = p.record.standings;
+  const hosted = structuredClone(p.record.defenses);
+  hosted[0].supervised.readerHosted = true;
+  // Claimed as Verified on it: the sittings give no supervised pool.
+  assert.match(verifyStanding(osmosis, hosted, keys).reason, /supervised credit|needs a supervised sitting/);
+  // Carried as not yet verified, with no supervised pool: valid — and the sitting is in neither pool.
+  const r = verifyStanding({ ...osmosis, status: 'not_yet_verified', supervised: null }, hosted, keys);
+  assert.equal(r.valid, true, r.reason);
+  // The same sitting from an admitted host counts as before.
+  assert.equal(verifyStanding(osmosis, p.record.defenses, keys).valid, true);
+});
+
 test('shadow mode: a remote score far above the supervised one may be carried as Verified until reviewed, and as More evidence requested once released — never harsher', () => {
   const defenses = [supervised('rec-3', 'Osmosis lab', 3, 10, []), remote('rec-1', 'Osmosis lab', 10, 10)];
   const base = { title: 'Osmosis lab', defenses: [0, 1], supervised: { credit: 3, n: 10, sittings: 1 }, remote: { credit: 10, n: 10, sittings: 1 } };

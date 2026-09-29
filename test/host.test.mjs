@@ -61,6 +61,15 @@ test('the sittings sat with a host in a proof payload, each with its word or awa
   assert.match(hostWordLine({ ...entries[0], word: { ...entries[0].word, challenge: 'x' } }), /NOT VALID/);
 });
 
+test('v1.6: a sitting a reader asked for and hosted is said to be one — and read as a host at the school without the field', () => {
+  const payload = { record: { defenses: [{ ...defense, supervised: { ...defense.supervised, readerHosted: true } }, { ...defense, id: 'rec-y', supervised: { ...defense.supervised, attestation: undefined, readerHosted: true } }] } };
+  const [signed, awaited] = hostWordsIn(payload);
+  assert.match(hostWordLine(signed), /Elena Marsh, Example College \(example\.edu, a reader who asked for it\) signed /);
+  assert.match(hostWordLine(signed), /VALID$/);
+  assert.match(hostWordLine(awaited), /sat with Elena Marsh, Example College \(example\.edu, a reader who asked for it\) · awaiting the host’s word$/);
+  assert.doesNotMatch(hostWordLine(hostWordsIn({ record: { defenses: [defense] } })[0]), /a reader who asked/);
+});
+
 // ─── §4.4.2: a word given through Wizzad ─────────────────────────────────────
 
 function wizzadWord(method, over = {}) {
