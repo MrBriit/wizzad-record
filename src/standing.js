@@ -1,5 +1,5 @@
 /**
- * A piece's STANDING (the Defended Work Standard v1.5, §4.6), recomputed from a record alone.
+ * A piece's STANDING (the Defended Work Standard v1.5, §4.6; v1.7 for reviews), recomputed from a record alone.
  *
  * A record carries, for each piece, the places of its sittings in `record.defenses`, the credit it pooled from them,
  * and a status. This recomputes the pools from those sittings' own `results`, counts a supervised sitting only when its
@@ -19,6 +19,10 @@
  *
  * A piece renamed between sittings is still one piece: the standing is titled as its NEWEST named sitting titles it,
  * and its older sittings may carry an earlier title (0.6.1; 0.6.0 wrongly refused them).
+ *
+ * A sitting a person's review set aside (v1.7, §4.4.3: `review.outcome: 'set_aside'`) is named among a standing's
+ * defenses like any other and counts in neither pool; one whose answers a person regraded counts by the `results` the
+ * record carries, which are as counted after the review.
  *
  * The arithmetic is the platform's own (apps/platform lib/defend/standing-core.ts); test/fixtures/standing-cases.json
  * holds both to one answer.
@@ -76,11 +80,13 @@ export function supervisedCounts(s) {
 }
 
 /**
- * The standing of one piece from its sittings `{ key, condition: 'remote'|'supervised', sealedAt, results, word? }`,
- * `sealedAt` being any key that orders them. A sitting in which no question counted is left out.
+ * The standing of one piece from its sittings `{ key, condition: 'remote'|'supervised', sealedAt, results, word?,
+ * readerHosted?, setAside? }`, `sealedAt` being any key that orders them. A sitting in which no question counted is left
+ * out, as is one a person's review set aside (v1.7).
  */
 export function standingOf(all, gain = PRACTICE_GAIN) {
-  const sittings = all.filter((s) => creditOf(s.results).n > 0);
+  // v1.7: a sitting set aside by a person's review counts toward nothing.
+  const sittings = all.filter((s) => s.setAside !== true && creditOf(s.results).n > 0);
   const counting = sittings.filter(supervisedCounts);
   const remoteSittings = sittings.filter((s) => s.condition === 'remote');
   const supervised = pool(counting);
@@ -144,7 +150,7 @@ export function verifyStanding(standing, defenses, keys = null) {
         word = { given: w.valid, exceptions: w.valid ? (w.exceptions ?? []) : [] };
       }
     }
-    sittings.push({ key: i, condition: supervised ? 'supervised' : 'remote', sealedAt: list.length - i, results: d.results, ...(word ? { word } : {}), ...(supervised && d.supervised?.readerHosted === true ? { readerHosted: true } : {}) });
+    sittings.push({ key: i, condition: supervised ? 'supervised' : 'remote', sealedAt: list.length - i, results: d.results, ...(word ? { word } : {}), ...(supervised && d.supervised?.readerHosted === true ? { readerHosted: true } : {}), ...(d.review?.outcome === 'set_aside' ? { setAside: true } : {}) });
   }
   // Titled as its newest named sitting (the lowest place: `defenses` is newest first) titles the piece.
   const newest = list[Math.min(...standing.defenses)];

@@ -2,7 +2,7 @@
 
 *What a piece of defended work is, what its signed record says about each of its five parts, and how anyone can check each part without asking Wizzad.*
 
-Status: v1.6, 29 September 2026. v1.6 adds a sitting hosted by a reader of the student's record who asked for it (§4.4.1): an optional `supervised.readerHosted`; every record made before it reads exactly as it did. v1.5 adds each piece's standing (§4.6): what supervised sittings on a piece found, with its remote sittings beside them, recomputable from the record alone; every record made before it reads exactly as it did. v1.4 adds the window's recording rule (§4.4.1): an optional `supervised.recording` beside the sitting's `capture`, and the same field in the host's statement; every word and record made before it reads exactly as it did. v1.3 adds two ways a host may give their word through Wizzad (§4.4.2), each disclosed on the record and checked under Wizzad's published keys; every word given before it reads exactly as it did. v1.2 added the sitting with a host in the room (§4.4.1). v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
+Status: v1.7, 1 October 2026. v1.7 adds a person's review of a sitting (§4.4.3): an optional `review` on a defense — answers a person regraded, or a sitting set aside — and a sitting set aside counts toward no standing (§4.6); every record made before it reads exactly as it did. v1.6 adds a sitting hosted by a reader of the student's record who asked for it (§4.4.1): an optional `supervised.readerHosted`; every record made before it reads exactly as it did. v1.5 adds each piece's standing (§4.6): what supervised sittings on a piece found, with its remote sittings beside them, recomputable from the record alone; every record made before it reads exactly as it did. v1.4 adds the window's recording rule (§4.4.1): an optional `supervised.recording` beside the sitting's `capture`, and the same field in the host's statement; every word and record made before it reads exactly as it did. v1.3 adds two ways a host may give their word through Wizzad (§4.4.2), each disclosed on the record and checked under Wizzad's published keys; every word given before it reads exactly as it did. v1.2 added the sitting with a host in the room (§4.4.1). v1.1 adds a second rule for reading a notebook's own outputs (§4.3.2), and a field that says which rule a reproduction used; it also adds optional `timeZone` fields, which say which zone a record's calendar days are in (§3.1). Every record made before it reads exactly as it did. v1 superseded the Wizzad Record profile v0.1 (20 September 2026). The signing, keys and credential sections (§5–§7) are unchanged, and every record issued under v0.1 checks exactly as it did. This document describes what Wizzad issues today. Anything a verifier relies on is here; anything not here is not promised.
 
 ## 1. The standard on one page
 
@@ -467,6 +467,27 @@ In both, **`supervised.attestation`** is:
 
 *Valid* here means: **Wizzad signed these words, and says the host gave them that way.** It is Wizzad's word, not the host's own key — the same trust as the record itself, and no more. A verifier must print which form it checked, and never call a word given through Wizzad the host's own signature.
 
+#### 4.4.3 A person's review
+
+Questions are made by an AI, and explanations are graded by AIs (§4.4). A student may ask for a person to review a sitting: once per sitting. The reviewer — a person Wizzad names — reads the questions, the answers and the grades, and either leaves the result as it is, regrades answers, or sets the sitting aside. A sealed sitting is never edited; the decision is its own note, and a review that **changed something** is carried on the defense it is of, as **`review`** (v1.7):
+
+| Field | Meaning |
+|---|---|
+| `outcome` | `'corrected'` — the person regraded one or more answers; or `'set_aside'` — the sitting had a fault in how it was asked, heard or arranged. |
+| `decidedAt` | When it was decided (an instant, UTC). |
+| `reviewer` = `{name, role}` | The person who decided, **as Wizzad entered them**. |
+| `about` | What the student asked the review about: `grade`, `question`, `heard` (how an answer was written down), `arrangement` (one the student was due), `status` or `other`. |
+| `regraded` | `corrected` only: how many answers the person regraded. |
+| `resultsAsSealed` | `corrected` only: the `results` the sealed sitting counted. |
+
+* **`corrected`:** the defense's `results` are **as counted after the review** — the same counting (§4.4) over the regraded answers — and `resultsAsSealed` keeps what the seal counted. A person may regrade an answer to right, partly right (an explanation only), not right, or ungraded (the question could not fairly be graded: counted neither way).
+* **`set_aside`:** the defense is carried exactly as it was sealed, and **counts toward nothing**: no standing pools it (§4.6). The student may sit the piece again at once.
+* **A review that left the result as it was is not carried.** Neither are the student's words or the reviewer's reply: those are between the two of them.
+
+The review is inside the signed payload, so it is covered by the record's signature (§5): it is **Wizzad's word that the person it names decided this** — the same trust as the record itself, and no more. A record issued before a review was decided does not carry it and is not changed by it; a record issued afterwards does.
+
+**Checking a review** (`wizzad-record` does this in `src/review.js`): `outcome` is one of the two; `reviewer` names a person and a role; `decidedAt` is an instant; a `corrected` review says how many answers were regraded and keeps `resultsAsSealed`. *Valid* here means: **the record carries a well-formed review.** It does not say the review was right. A review is only as good as the signature over the record that carries it: where the record does not verify, a verifier must say the review is not a signed word, and `wizzad-record` does.
+
 ### 4.5 Part V: the record
 
 The parts above are fields of one payload, signed as a whole (§5). A task a reader set, and the student defended, is also issued as an Open Badges 3.0 credential (§7). The record is the student's to issue and to withdraw. A withdrawn or expired link stops serving the record; it never changes what was signed.
@@ -486,6 +507,8 @@ A record may carry, for each piece among its defenses, a **standing** (`record.s
 
 **Which supervised sittings count:** a defense with `condition: 'supervised'` whose host's word is present and holds (§4.4.1, §4.4.2), whose `statement.exceptions` names neither `left_room` nor `other_device`, and — since v1.6 — whose `supervised.readerHosted` is not `true`. `technical_fault` does not stop it counting. A sitting a reader hosted is named among the standing's `defenses` like any other, and counts in neither pool: anyone may ask from an address they hold, so only a host Wizzad admitted moves a standing.
 
+**A sitting a person's review changed** (v1.7, §4.4.3): a defense whose `review.outcome` is `set_aside` is named among the standing's `defenses` like any other and counts in **neither** pool, whatever its condition; one whose `review.outcome` is `corrected` counts by the `results` the record carries, which are as counted after the review.
+
 **The gap** is the remote share minus the supervised share, adjusted for the practice gain whichever condition was sat **second** gets anyway — 0.06 of credit added when the supervised sittings came second, subtracted when the remote ones did — and divided by √(SEᵣ² + SEₛ²). Which came second is read from the first sitting of each condition in the order of `record.defenses`, which lists attempts **newest first**; the record carries each attempt's day, never its time (§4.4). The practice gain is a prior from retest studies, to be replaced by a measured one; a change to it is a version of this document.
 
 **The status the rules give:**
@@ -504,7 +527,7 @@ A record may carry, for each piece among its defenses, a **standing** (`record.s
 **Checking a standing** (`wizzad-record` does this in `src/standing.js`):
 
 1. Every place in `defenses` is a defense this record carries, named once, and `title` is the title of the newest of them (the lowest place).
-2. Recompute `supervised` and `remote` from those defenses as above — a supervised sitting counting only when its host's word verifies — and compare `credit`, `n` and `sittings`.
+2. Recompute `supervised` and `remote` from those defenses as above — a supervised sitting counting only when its host's word verifies, and a sitting set aside by a person's review counting in neither — and compare `credit`, `n` and `sittings`.
 3. Compute the gap and the status the rules give, and check the carried `status` is that status or a milder one as above.
 
 *Valid* here means: **this status is one the rules allow for these sittings.** It does not say how the student learned, nor anything the sittings do not show.
@@ -622,6 +645,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 * **Added within v1.1: time zones.** Optional `timeZone` fields on the record, each attempt, the brief, each deliverable, the reproduction and the model run (§3.1). They change no check: instants are UTC as before, and a record without them gives UTC days, as every record did.
 * **What changed in v1.2.** A sitting sat with a host in the room (§4.4.1): the optional `condition` and `supervised` fields on a defense, and inside `supervised` the host's own signed word, `attestation` — a WebAuthn assertion over a canonical-JSON statement, carried with the host's public key so that anyone can check it. This adds a second signature to check, made by a second party's key; it changes nothing about the record's own signature, keys or canonical form. Records issued before v1.2 carry none of these fields and are read as sat alone.
 * **Corrected within v1.5 (29 September 2026).** §4.6's check 1 first required every named defense to carry the standing's `title`, so a piece renamed between sittings failed a check it should pass. It now requires `title` to be the newest named defense's; the defenses are named once each. Records issued before the correction check as they should: the correction only accepts what the first wording wrongly refused.
+* **What changed in v1.7.** A person's review of a sitting (§4.4.3): the optional `review` on a defense, carried only when it changed something — `corrected` (the defense's `results` are as counted after a person regraded answers; `resultsAsSealed` keeps the seal's) or `set_aside` (the sitting is carried as sealed and counts toward nothing). A standing's pools and status are recomputed without a sitting set aside (§4.6). Nothing about any signature, key or canonical form changes; records made before v1.7 carry no such field and check exactly as they did.
 * **What changed in v1.6.** A sitting a reader asked for and hosted (§4.4.1): the optional `supervised.readerHosted`, and the `host.domain` of such a sitting is the domain of the address the reader asked from. Such a sitting is sealed and signed as any other and its host's word is checked as any other, but it never counts toward a standing (§4.6): a standing's pools and status are recomputed without it. Nothing about any signature, key or canonical form changes; records made before v1.6 carry no such field and check exactly as they did.
 * **What changed in v1.5.** Each piece's standing (§4.6): the optional `record.standings`, naming its sittings by their place in `defenses` with the credit it pooled and the status the student is shown, recomputable from the record alone. The order of `defenses` — newest first — is now part of what a verifier reads. Nothing about any signature, key or canonical form changes; records made before v1.5 carry no standings.
 * **What changed in v1.4.** The window's recording rule (§4.4.1): an optional `supervised.recording` — `none`, `camera` or `camera_screen`, as the host set it — carried beside the defense's own `capture` block so that the rule and what was in fact kept can be read side by side; and the same optional field in the host's statement, bound to the record's in step 6. Nothing about any signature, key or canonical form changes; records and words made before v1.4 carry no such field and check exactly as they did.
@@ -641,6 +665,7 @@ This is the Defended Work Standard **v1.1**. The payload's `schema` (`wizzad.pro
 * Must not present a host's word as Wizzad's, nor a host's `name` or `organisation` as checked: the word is the passkey holder's, and only the `domain` was confirmed (§4.4.1).
 * Must not present a sitting whose `supervised.readerHosted` is `true` as hosted at the student's school: its host is the reader who asked for it (§4.4.1).
 * Must not read a `supervised` sitting without an `attestation` as failed, nor a sitting without `condition` as unsupervised in any sense stronger than *sat alone*.
+* Must not count a sitting whose `review.outcome` is `set_aside` toward anything, nor present its results as evidence about the student; and must not present a reviewer's `name` or `role` as checked, nor a review as more than Wizzad's word that the person it names decided it (§4.4.3).
 * Must not present a standing's gap as a finding about the student, nor show a status a record does not carry: a gap is a reason to sit again (§4.6).
 
 The record's own words carry these limits. Keep them beside any result you show.

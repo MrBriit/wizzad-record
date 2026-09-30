@@ -441,6 +441,107 @@
         "pending": null,
         "z": null
       }
+    },
+    {
+      "name": "v1.7: a remote sitting a person's review set aside counts in neither pool — the remote pool is the other sitting's",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          },
+          "setAside": true
+        },
+        {
+          "key": 1,
+          "condition": "remote",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 6
+          }
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 3000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 7
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "second": "supervised",
+        "remote": {
+          "credit": 6,
+          "n": 10
+        },
+        "supervised": {
+          "credit": 7,
+          "n": 10
+        },
+        "keys": {
+          "supervised": [
+            2
+          ],
+          "remote": [
+            1
+          ]
+        }
+      }
+    },
+    {
+      "name": "v1.7: the only supervised sitting is set aside — no supervised sitting counts, and it is not read as one awaiting a word",
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 8
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          },
+          "setAside": true
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "no_supervised",
+        "z": null,
+        "remote": {
+          "credit": 8,
+          "n": 10
+        },
+        "keys": {
+          "supervised": [],
+          "remote": [
+            0
+          ]
+        }
+      }
     }
   ]
 }

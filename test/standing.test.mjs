@@ -114,6 +114,29 @@ test('v1.6: a sitting hosted by the reader who asked for it — a word given, no
   assert.equal(verifyStanding(osmosis, p.record.defenses, keys).valid, true);
 });
 
+test('v1.7: a sitting a person’s review set aside counts in neither pool; one whose answers were regraded counts by the results the record carries', () => {
+  const p = record();
+  const [osmosis] = p.record.standings;
+  const review = { outcome: 'set_aside', decidedAt: '2026-10-08T10:00:00.000Z', reviewer: { name: 'Ama Owusu', role: 'Wizzad' }, about: 'heard' };
+  // The supervised sitting set aside: its host's word still holds, and it moves nothing.
+  const aside = structuredClone(p.record.defenses);
+  aside[0].review = review;
+  assert.match(verifyStanding(osmosis, aside, keys).reason, /supervised credit|needs a supervised sitting/);
+  const r = verifyStanding({ ...osmosis, status: 'not_yet_verified', supervised: null }, aside, keys);
+  assert.equal(r.valid, true, r.reason);
+  // The remote sitting set aside: the piece stands on its supervised sitting alone.
+  const remoteAside = structuredClone(p.record.defenses);
+  remoteAside[2].review = review;
+  assert.match(verifyStanding(osmosis, remoteAside, keys).reason, /remote credit/);
+  assert.equal(verifyStanding({ ...osmosis, remote: null }, remoteAside, keys).valid, true);
+  // Regraded: the results carried are the ones counted — 8 of 10 after the review, 7 of 10 as sealed.
+  const regraded = structuredClone(p.record.defenses);
+  regraded[0].review = { outcome: 'corrected', decidedAt: review.decidedAt, reviewer: review.reviewer, about: 'grade', regraded: 1, resultsAsSealed: regraded[0].results };
+  regraded[0].results = { ...regraded[0].results, checkedCorrect: 8 };
+  assert.match(verifyStanding(osmosis, regraded, keys).reason, /supervised credit/);
+  assert.equal(verifyStanding({ ...osmosis, supervised: { credit: 8, n: 10, sittings: 1 } }, regraded, keys).valid, true);
+});
+
 test('shadow mode: a remote score far above the supervised one may be carried as Verified until reviewed, and as More evidence requested once released — never harsher', () => {
   const defenses = [supervised('rec-3', 'Osmosis lab', 3, 10, []), remote('rec-1', 'Osmosis lab', 10, 10)];
   const base = { title: 'Osmosis lab', defenses: [0, 1], supervised: { credit: 3, n: 10, sittings: 1 }, remote: { credit: 10, n: 10, sittings: 1 } };

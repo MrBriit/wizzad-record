@@ -56,6 +56,18 @@ standing record.standings[0] · Osmosis lab · Verified · supervised 7 of 10 (1
 ```
 
 *Matches* means the status is one the rules allow for those sittings. A gap status reaches a student only after Wizzad has reviewed it, so a record may carry a milder status than its numbers would give — never a harsher one. The line prints the pooled credit, not the gap, so it never states a status a review has not released; the numbers are in the record for anyone to compute (§4.6). A piece renamed between sittings is one standing, titled as its newest sitting. A standing that does not match makes `check` exit 1.
+## Read a person's review
+
+Questions are made by an AI and explanations graded by AIs. A student may ask for a person to review a sitting, and a review that changed something is carried on that sitting ([§4.4.3](PROFILE.md#443-a-persons-review)): answers the person regraded — the results are then as counted after the review, with the results as sealed kept beside them — or the sitting set aside, which counts toward no standing. `check` prints each one:
+
+```
+review   record.defenses[0] · reviewed by Ama Owusu, Wizzad on 2026-10-02 · 1 answer regraded by that person: results are as counted after the review; the results as sealed are kept beside them · Wizzad’s word, signed with the record
+review   record.defenses[2] · reviewed by Ama Owusu, Wizzad on 2026-10-02 · set aside: carried as sealed, counts toward nothing · Wizzad’s word, signed with the record
+```
+
+The review is inside the signed record, so it is Wizzad's word that the person it names decided this — no more. A review that left the result as it was is not carried.
+
+
 ## Check a credential
 
 ```bash
