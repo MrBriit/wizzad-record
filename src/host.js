@@ -26,6 +26,8 @@ import { canonicalJson } from './canonical.js';
 import { keyRing, publicKeyObject, revocationOf } from './keys.js';
 
 export const HOST_WORD_SCHEMA = 'wizzad.host-word/v1';
+/** v1.10: a word given once for many sittings in the host's window (§4.4.2). */
+export const HOST_ROOM_WORD_SCHEMA = 'wizzad.host-room-word/v1';
 export const EXCEPTION_WORDS = {
   left_room: 'the student left the room',
   other_device: 'another device was used',
@@ -56,6 +58,49 @@ function shapedWizzad(att) {
 
 const RECORDINGS = ['none', 'camera', 'camera_screen'];
 
+// ─── v1.10: one word for the room ────────────────────────────────────────────
+
+/** One sitting's own part of a room word: what its entry hash covers. */
+export function roomEntryOf(s) {
+  return { recordId: s.recordId, sealedAt: s.sealedAt, payloadSha256: s.payloadSha256, checkinId: s.checkinId, piece: s.piece, exceptions: s.exceptions, note: s.note };
+}
+/** A sitting's entry in a room word: its own part's canonical JSON, hashed, base64url. */
+export function entryHashOf(s) {
+  return sha256(canonicalJson(roomEntryOf(s))).toString('base64url');
+}
+/** A room covers at most this many sittings (§4.4.4). */
+export const ROOM_SITTINGS_MAX = 60;
+function roomShaped(r) {
+  return !!r && typeof r === 'object' && r.schema === HOST_ROOM_WORD_SCHEMA && str(r.windowId) && str(r.signedAt) && r.watched === 'whole'
+    && r.host && str(r.host.name) && str(r.host.domain) && (r.host.organisation === null || typeof r.host.organisation === 'string')
+    && (r.recording === undefined || RECORDINGS.includes(r.recording))
+    && Array.isArray(r.entries) && r.entries.length >= 1 && r.entries.length <= ROOM_SITTINGS_MAX
+    && r.entries.every((e) => typeof e === 'string' && /^[A-Za-z0-9_-]{43}$/.test(e)) && new Set(r.entries).size === r.entries.length;
+}
+function roomAgrees(r, s) {
+  return r.windowId === s.windowId && r.host.name === s.host.name && r.host.organisation === s.host.organisation && r.host.domain === s.host.domain
+    && r.watched === s.watched && r.recording === s.recording && r.signedAt === s.signedAt;
+}
+/**
+ * The one statement a sitting of a room may carry: its own entry and what the room fixes, no field more (§4.4.4 step 2).
+ * A field outside these is covered by no signature, so a statement that carries one is not the room's.
+ */
+export function roomStatementFor(r, s) {
+  return { schema: HOST_WORD_SCHEMA, ...roomEntryOf(s), windowId: r.windowId, host: r.host, watched: r.watched, ...(r.recording !== undefined ? { recording: r.recording } : {}), signedAt: r.signedAt };
+}
+/**
+ * A word's room, checked against its sitting: null when the word was given for one sitting; otherwise the room when
+ * this sitting is one of its entries and agrees with it, or the reason it is not.
+ */
+function roomOfWord(att) {
+  if (att?.room === undefined) return { room: null };
+  if (!roomShaped(att.room)) return { reason: 'the room the word was given for is not one' };
+  if (!roomAgrees(att.room, att.statement)) return { reason: 'the sitting disagrees with the room it was signed in' };
+  if (canonicalJson(att.statement) !== canonicalJson(roomStatementFor(att.room, att.statement))) return { reason: 'the sitting carries words its room did not sign' };
+  if (!att.room.entries.includes(entryHashOf(att.statement))) return { reason: 'the sitting is not one of its room’s' };
+  return { room: att.room };
+}
+
 function bound(s, e) {
   if (e.recordId !== undefined && s.recordId !== e.recordId) return 'names another record';
   if (e.windowId !== undefined && s.windowId !== e.windowId) return 'names another window';
@@ -81,14 +126,18 @@ function verifyWizzadWord(att, expect, keys) {
   if (!raw) return fail(`key ${keyId} is not among the published keys`);
   const bytes = b64u(att.signedBy.signature);
   if (bytes.length !== 64) return fail('signature is not 64 bytes');
+  // v1.10: a word for the room is signed over the room; its sitting must be one of the room's.
+  const r = roomOfWord(att);
+  if (r.reason) return fail(r.reason);
+  if (r.room && att.method !== 'account') return fail('a word for the room is given by passkey or through the host’s account');
   let ok = false;
-  try { ok = nodeVerify(null, Buffer.from(canonicalJson(att.statement), 'utf8'), publicKeyObject(raw), bytes); } catch { ok = false; }
+  try { ok = nodeVerify(null, Buffer.from(canonicalJson(r.room ?? att.statement), 'utf8'), publicKeyObject(raw), bytes); } catch { ok = false; }
   if (!ok) return fail('the signature does not hold');
   const s = att.statement;
   const e = expect?.supervised ? { recordId: expect.id, windowId: expect.supervised.windowId, attempt: expect.attempt, hostDomain: expect.supervised.host?.domain, recording: expect.supervised.recording } : expect ?? {};
   const b = bound(s, e);
   if (b) return fail(b);
-  return { valid: true, method: att.method, keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, recording: s.recording ?? null, email: att.email ?? null };
+  return { valid: true, method: att.method, keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, recording: s.recording ?? null, email: att.email ?? null, ...(r.room ? { room: { sittings: r.room.entries.length } } : {}) };
 }
 
 /** The challenge for a statement: its canonical JSON, hashed, base64url. */
@@ -130,8 +179,11 @@ export function verifyHostWord(att, expect = {}, keys = null) {
   const fail = (reason) => ({ valid: false, reason });
   if (!shaped(att)) return fail('not an attestation');
   const s = att.statement;
-  const expected = challengeOf(s);
-  if (att.challenge !== expected) return fail('the challenge is not the statement’s hash');
+  // v1.10: a word for the room — the challenge is the room's hash, and this sitting must be one of the room's.
+  const r = roomOfWord(att);
+  if (r.reason) return fail(r.reason);
+  const expected = challengeOf(r.room ?? s);
+  if (att.challenge !== expected) return fail(r.room ? 'the challenge is not the room’s hash' : 'the challenge is not the statement’s hash');
   let cd;
   const cdj = b64u(att.assertion.clientDataJSON);
   try { cd = JSON.parse(cdj.toString('utf8')); } catch { return fail('client data does not parse'); }
@@ -153,7 +205,7 @@ export function verifyHostWord(att, expect = {}, keys = null) {
   const e = expect?.supervised ? { recordId: expect.id, windowId: expect.supervised.windowId, attempt: expect.attempt, hostDomain: expect.supervised.host?.domain, recording: expect.supervised.recording } : expect;
   const b = bound(s, e);
   if (b) return fail(b);
-  return { valid: true, method: 'passkey', keyId: att.key.keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, recording: s.recording ?? null };
+  return { valid: true, method: 'passkey', keyId: att.key.keyId, signedAt: s.signedAt, host: s.host, watched: s.watched, exceptions: s.exceptions, note: s.note ?? null, recording: s.recording ?? null, ...(r.room ? { room: { sittings: r.room.entries.length } } : {}) };
 }
 
 /** Every sitting sat with a host in a proof payload, with its word where given: `[{ path, defense, word }]`. */
@@ -191,13 +243,19 @@ export function hostWordLine(entry, keys = null) {
   const h = d.supervised?.host;
   // v1.6: a reader of the record who asked for this sitting and hosted it is said to be one.
   const reader = d.supervised?.readerHosted === true ? ', a reader who asked for it' : '';
-  const who = h ? `${h.name}${h.organisation ? `, ${h.organisation}` : ''} (${h.domain}${reader})` : `a host${reader}`;
+  // v1.9: a host a school admitted is named with the school, and how it came to be one.
+  const school = d.supervised?.school;
+  const who = h && school
+    ? `${h.name}, admitted to host by ${school.name} (${school.domain}), ${school.approvedBy === 'dns' ? 'a school added by its domain’s owner' : 'a school Wizzad approved'}`
+    : h ? `${h.name}${h.organisation ? `, ${h.organisation}` : ''} (${h.domain}${reader})` : `a host${reader}`;
   const rule = recordingRuleWords(d);
   if (!entry.word) return `${entry.path} · sat with ${who}${rule ? ` · ${rule}` : ''} · awaiting the host’s word`;
   const r = verifyHostWord(entry.word, d, keys);
   if (!r.valid) return `${entry.path} · sat with ${who} · host’s word NOT VALID — ${r.reason}`;
   const ex = r.exceptions.map((x) => EXCEPTION_WORDS[x] ?? x);
-  const saw = `watched the whole sitting${ex.length ? `, though ${ex.join('; ')}` : ''}${r.note ? ` · note: “${r.note}”` : ''}${rule ? ` · ${rule}` : ''}`;
+  // v1.10: a word given once for the room says how many sittings it covered.
+  const inRoom = r.room && r.room.sittings > 1 ? ` · one word for the ${r.room.sittings} sittings in the room` : '';
+  const saw = `watched the whole sitting${ex.length ? `, though ${ex.join('; ')}` : ''}${r.note ? ` · note: “${r.note}”` : ''}${rule ? ` · ${rule}` : ''}${inRoom}`;
   if (r.method === 'passkey') return `${entry.path} · ${who} signed ${r.signedAt} · ${saw} · key ${r.keyId} · VALID`;
   const how = r.method === 'account' ? 'confirmed through their Wizzad account' : `confirmed by a link to their school address at ${r.email?.domain ?? h?.domain ?? '?'}`;
   return `${entry.path} · ${who} ${how} ${r.signedAt} · ${saw} · Wizzad’s signature, key ${r.keyId} · VALID (Wizzad’s word that the host gave it)`;

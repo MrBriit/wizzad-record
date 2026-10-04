@@ -8,7 +8,10 @@ export function canonicalJson(value) {
   const visit = (v) => {
     if (v === null || typeof v !== 'object') return v;
     if (Array.isArray(v)) return v.map(visit);
-    const out = {};
+    // A null-prototype copy: on a plain {} an own "__proto__" key (JSON.parse makes one) would set the prototype and
+    // vanish from the bytes, so two different payloads would share a signature. Key order is unchanged, so every value
+    // without such a key canonicalises exactly as before.
+    const out = Object.create(null);
     for (const k of Object.keys(v).sort()) out[k] = visit(v[k]);
     return out;
   };

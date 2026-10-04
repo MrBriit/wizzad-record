@@ -1,0 +1,244 @@
+{
+  "defenses": [
+    {
+      "id": "6rKKllKJKC0aUIk2iTSzyzZDVMoupgTY",
+      "title": "Osmosis in potato cylinders — lab write-up",
+      "sealedOn": "2026-10-06",
+      "attempt": 1,
+      "identity": "session",
+      "condition": "supervised",
+      "supervised": {
+        "windowId": "ouHdQjIbL6Z40VWk",
+        "place": "Hall C",
+        "startsAt": "2026-10-06T18:00:00.000Z",
+        "endsAt": "2026-10-06T20:00:00.000Z",
+        "materials": "closed_book",
+        "device": "own",
+        "recording": "none",
+        "host": {
+          "name": "Elena Marsh",
+          "organisation": "Example College",
+          "domain": "example.edu"
+        },
+        "identityConfirmed": true,
+        "attestation": {
+          "key": {
+            "alg": "ES256",
+            "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELVfGPNyqg9/DxqGzHNvOxWp7GipIpGxf3KB3R2RJzDXFsb0od/sMd6n/FEsxf7Zlozl4+K7j3XUFhJs5w14d8w==",
+            "keyId": "2be1fe1ffcc89672"
+          },
+          "room": {
+            "host": {
+              "name": "Elena Marsh",
+              "domain": "example.edu",
+              "organisation": "Example College"
+            },
+            "schema": "wizzad.host-room-word/v1",
+            "entries": [
+              "_-CPz4egosrBu7fkseWROF5hd3SrYLTSireJsNrCEbk",
+              "ViZl99bk4gDkrv2OBie9hcObQNJhZQvFQ_8x8bDrGYo"
+            ],
+            "watched": "whole",
+            "signedAt": "2026-10-06T19:00:00.000Z",
+            "windowId": "ouHdQjIbL6Z40VWk",
+            "recording": "none"
+          },
+          "rpId": "localhost",
+          "origin": "http://localhost:3000",
+          "assertion": {
+            "signature": "MEUCIQCJvCg-iDnv_sA9RzenE4RbV5NDbg6rGmAdbYMZstmVvAIgaKhL0LOJ9eGknSvGyJrtcv1EOri38PdOPTKiUKy1slQ",
+            "credentialId": "kNjzr7v4WynZ8INxxdR27Q",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiYkNjQWJfN0c1cTlsRUhFS0o1MkZSYVh1MEtnX3FDVFhQOTA2VkVQQ0lHSSIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+            "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2MFAAAAAQ"
+          },
+          "challenge": "bCcAb_7G5q9lEHEKJ52FRaXu0Kg_qCTXP906VEPCIGI",
+          "statement": {
+            "host": {
+              "name": "Elena Marsh",
+              "domain": "example.edu",
+              "organisation": "Example College"
+            },
+            "note": null,
+            "piece": {
+              "title": "Osmosis in potato cylinders — lab write-up",
+              "attempt": 1
+            },
+            "schema": "wizzad.host-word/v1",
+            "watched": "whole",
+            "recordId": "6rKKllKJKC0aUIk2iTSzyzZDVMoupgTY",
+            "sealedAt": "2026-10-06T18:10:12.000Z",
+            "signedAt": "2026-10-06T19:00:00.000Z",
+            "windowId": "ouHdQjIbL6Z40VWk",
+            "checkinId": "dwcdg8xPVLURRRD9",
+            "recording": "none",
+            "exceptions": [],
+            "payloadSha256": "f72351783d18ddc1d8dc9b4ccba1fa2e1e20fd339e4069bcde2b1cc62f604a38"
+          }
+        }
+      },
+      "manner": "typed",
+      "askedBefore": 0,
+      "results": {
+        "checked": 8,
+        "checkedCorrect": 8,
+        "explained": 3,
+        "explainedFull": 3,
+        "explainedPartial": 0,
+        "episodic": 0,
+        "episodicAccounted": 0,
+        "history": 0,
+        "historyConnected": 0,
+        "ungraded": 0,
+        "late": 0,
+        "skipped": 0
+      },
+      "rescore": {
+        "agreed": 3,
+        "of": 3
+      },
+      "council": {
+        "graders": 2,
+        "of": 3,
+        "unanimousBlind": 3,
+        "conferred": 0,
+        "unanimousAfter": 3
+      },
+      "timing": {
+        "minutes": 2,
+        "allowed": {
+          "perItemSec": 90,
+          "minutes": 15
+        }
+      },
+      "telemetry": {
+        "windowLeft": 0,
+        "pasted": 0
+      },
+      "elsewhere": {
+        "file": null,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "OSMk1AUxA9l4cuwgDUvSTsZ9_Iwc1szU",
+      "title": "Osmosis in potato cylinders — lab write-up",
+      "sealedOn": "2026-10-06",
+      "attempt": 1,
+      "identity": "session",
+      "condition": "supervised",
+      "supervised": {
+        "windowId": "ouHdQjIbL6Z40VWk",
+        "place": "Hall C",
+        "startsAt": "2026-10-06T18:00:00.000Z",
+        "endsAt": "2026-10-06T20:00:00.000Z",
+        "materials": "closed_book",
+        "device": "own",
+        "recording": "none",
+        "host": {
+          "name": "Elena Marsh",
+          "organisation": "Example College",
+          "domain": "example.edu"
+        },
+        "identityConfirmed": true,
+        "attestation": {
+          "key": {
+            "alg": "ES256",
+            "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELVfGPNyqg9/DxqGzHNvOxWp7GipIpGxf3KB3R2RJzDXFsb0od/sMd6n/FEsxf7Zlozl4+K7j3XUFhJs5w14d8w==",
+            "keyId": "2be1fe1ffcc89672"
+          },
+          "room": {
+            "host": {
+              "name": "Elena Marsh",
+              "domain": "example.edu",
+              "organisation": "Example College"
+            },
+            "schema": "wizzad.host-room-word/v1",
+            "entries": [
+              "_-CPz4egosrBu7fkseWROF5hd3SrYLTSireJsNrCEbk",
+              "ViZl99bk4gDkrv2OBie9hcObQNJhZQvFQ_8x8bDrGYo"
+            ],
+            "watched": "whole",
+            "signedAt": "2026-10-06T19:00:00.000Z",
+            "windowId": "ouHdQjIbL6Z40VWk",
+            "recording": "none"
+          },
+          "rpId": "localhost",
+          "origin": "http://localhost:3000",
+          "assertion": {
+            "signature": "MEUCIQCJvCg-iDnv_sA9RzenE4RbV5NDbg6rGmAdbYMZstmVvAIgaKhL0LOJ9eGknSvGyJrtcv1EOri38PdOPTKiUKy1slQ",
+            "credentialId": "kNjzr7v4WynZ8INxxdR27Q",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiYkNjQWJfN0c1cTlsRUhFS0o1MkZSYVh1MEtnX3FDVFhQOTA2VkVQQ0lHSSIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+            "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2MFAAAAAQ"
+          },
+          "challenge": "bCcAb_7G5q9lEHEKJ52FRaXu0Kg_qCTXP906VEPCIGI",
+          "statement": {
+            "host": {
+              "name": "Elena Marsh",
+              "domain": "example.edu",
+              "organisation": "Example College"
+            },
+            "note": "Stepped out for a minute.",
+            "piece": {
+              "title": "Osmosis in potato cylinders — lab write-up",
+              "attempt": 1
+            },
+            "schema": "wizzad.host-word/v1",
+            "watched": "whole",
+            "recordId": "OSMk1AUxA9l4cuwgDUvSTsZ9_Iwc1szU",
+            "sealedAt": "2026-10-06T18:11:12.000Z",
+            "signedAt": "2026-10-06T19:00:00.000Z",
+            "windowId": "ouHdQjIbL6Z40VWk",
+            "checkinId": "mR2Jz0hSGZGhrgXz",
+            "recording": "none",
+            "exceptions": [
+              "left_room"
+            ],
+            "payloadSha256": "f31b02093f0a847f2b3e2500338881f92c6ae7a473d8c368f8c2d2e093d9678e"
+          }
+        }
+      },
+      "manner": "typed",
+      "askedBefore": 0,
+      "results": {
+        "checked": 8,
+        "checkedCorrect": 8,
+        "explained": 3,
+        "explainedFull": 3,
+        "explainedPartial": 0,
+        "episodic": 0,
+        "episodicAccounted": 0,
+        "history": 0,
+        "historyConnected": 0,
+        "ungraded": 0,
+        "late": 0,
+        "skipped": 0
+      },
+      "rescore": {
+        "agreed": 3,
+        "of": 3
+      },
+      "council": {
+        "graders": 2,
+        "of": 3,
+        "unanimousBlind": 3,
+        "conferred": 0,
+        "unanimousAfter": 3
+      },
+      "timing": {
+        "minutes": 2,
+        "allowed": {
+          "perItemSec": 90,
+          "minutes": 15
+        }
+      },
+      "telemetry": {
+        "windowLeft": 0,
+        "pasted": 0
+      },
+      "elsewhere": {
+        "file": null,
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash, generateKeyPairSync, sign as nodeSign } from 'node:crypto';
-import { verifyHostWord, hostWordsIn, hostWordLine, hostWordMethod, hostChallengeOf, keyIdOfSpki, canonicalJson, keyRing, recordingRuleWords } from '../src/index.js';
+import { verifyHostWord, hostWordsIn, hostWordLine, hostWordMethod, hostChallengeOf, keyIdOfSpki, canonicalJson, keyRing, recordingRuleWords, entryHashOf, HOST_ROOM_WORD_SCHEMA } from '../src/index.js';
 
 const fx = (n) => JSON.parse(readFileSync(new URL(`./fixtures/${n}`, import.meta.url), 'utf8'));
 // A sitting the platform's own integration run sealed and a host signed (a real assertion from a real key pair):
@@ -59,6 +59,17 @@ test('the sittings sat with a host in a proof payload, each with its word or awa
   assert.match(hostWordLine(entries[0]), /watched the whole sitting, though the student left the room/);
   assert.match(hostWordLine(entries[1]), /awaiting the host’s word$/);
   assert.match(hostWordLine({ ...entries[0], word: { ...entries[0].word, challenge: 'x' } }), /NOT VALID/);
+});
+
+test('v1.9: a host a school admitted is named with the school and how it came to be one; the word still checks', () => {
+  const byWizzad = { ...defense, supervised: { ...defense.supervised, school: { name: 'Example College', domain: 'example.edu', approvedBy: 'wizzad' } } };
+  const byDns = { ...defense, id: 'rec-z', supervised: { ...defense.supervised, attestation: undefined, school: { name: 'Example College', domain: 'example.edu', approvedBy: 'dns' } } };
+  const [signed, awaited] = hostWordsIn({ record: { defenses: [byWizzad, byDns] } });
+  assert.match(hostWordLine(signed), /Elena Marsh, admitted to host by Example College \(example\.edu\), a school Wizzad approved signed /);
+  assert.match(hostWordLine(signed), /VALID$/);
+  assert.match(hostWordLine(awaited), /sat with Elena Marsh, admitted to host by Example College \(example\.edu\), a school added by its domain’s owner · awaiting the host’s word$/);
+  // The school is beside the word, not in it: the host's signature checks as it did.
+  assert.equal(verifyHostWord(byWizzad.supervised.attestation, byWizzad).valid, true);
 });
 
 test('v1.6: a sitting a reader asked for and hosted is said to be one — and read as a host at the school without the field', () => {
@@ -151,4 +162,115 @@ test('the window’s recording rule reads beside what the sitting in fact carrie
   assert.equal(verifyHostWord(att, defense, keys).valid, true, 'a record without the field binds nothing on it');
   const odd = wizzadWord('account', { statement: { recording: 'audio' } });
   assert.match(verifyHostWord(odd.att, recorded, odd.keys).reason, /unknown recording rule/);
+});
+
+// ─── v1.10: one word for the room ────────────────────────────────────────────
+
+/** A room of three sittings, signed once as an authenticator signs: each sitting's statement, the room over them. */
+function roomWord() {
+  const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const spki = pair.publicKey.export({ type: 'spki', format: 'der' }).toString('base64');
+  const host = { name: 'E. Marsh', organisation: 'Example College', domain: 'example.edu' };
+  const statementOf = (i, extra = {}) => ({ schema: 'wizzad.host-word/v1', recordId: `rec-${i}`, sealedAt: '2026-10-06T15:20:00.000Z', payloadSha256: String(i).repeat(64).slice(0, 64), checkinId: `ci-${i}`, windowId: 'w9', piece: { title: `Piece ${i}`, attempt: 1 }, host, watched: 'whole', exceptions: [], note: null, signedAt: '2026-10-06T15:40:00.000Z', recording: 'none', ...extra });
+  const statements = [statementOf(1), statementOf(2, { exceptions: ['left_room'], note: 'Back in two minutes.' }), statementOf(3)];
+  const room = { schema: HOST_ROOM_WORD_SCHEMA, windowId: 'w9', host, watched: 'whole', recording: 'none', signedAt: '2026-10-06T15:40:00.000Z', entries: statements.map(entryHashOf) };
+  const challenge = hostChallengeOf(room);
+  const cdj = Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge, origin: 'https://wizzad.ai', crossOrigin: false }));
+  const authData = Buffer.alloc(37); createHash('sha256').update('wizzad.ai').digest().copy(authData, 0); authData[32] = 0x05; authData.writeUInt32BE(9, 33);
+  const signature = nodeSign('sha256', Buffer.concat([authData, createHash('sha256').update(cdj).digest()]), pair.privateKey);
+  const parts = { challenge, assertion: { credentialId: 'c', clientDataJSON: cdj.toString('base64url'), authenticatorData: authData.toString('base64url'), signature: signature.toString('base64url') }, key: { spki, alg: 'ES256', keyId: keyIdOfSpki(spki) }, rpId: 'wizzad.ai', origin: 'https://wizzad.ai' };
+  return { statements, room, parts, wordFor: (i) => ({ statement: statements[i], room, ...parts }) };
+}
+const expectFor = (i) => ({ recordId: `rec-${i + 1}`, windowId: 'w9', attempt: 1, hostDomain: 'example.edu' });
+
+test('v1.10: a word given once for the room verifies for each sitting in it — its own statement, found in the room, under one signature', () => {
+  const { wordFor, room } = roomWord();
+  for (const i of [0, 1, 2]) {
+    const r = verifyHostWord(wordFor(i), expectFor(i));
+    assert.equal(r.valid, true, r.reason);
+    assert.deepEqual(r.room, { sittings: 3 });
+  }
+  assert.deepEqual(verifyHostWord(wordFor(1), expectFor(1)).exceptions, ['left_room']);
+  // The room names the others only by hash: nothing of another sitting is on this one's record.
+  assert.equal(JSON.stringify(wordFor(0)).includes('Piece 2'), false);
+  assert.equal(room.entries.length, 3);
+});
+
+test('v1.10: a room word is refused for a sitting not in it, a statement changed, a room changed, or a statement that disagrees with its room', () => {
+  const { wordFor, statements, room, parts } = roomWord();
+  const w = wordFor(1);
+  // The note changed after signing: its hash is not one of the room's.
+  assert.match(verifyHostWord({ ...w, statement: { ...w.statement, note: 'Nothing to report.' } }, expectFor(1)).reason, /not one of its room/);
+  // A sitting of another room, carried beside this room's signature.
+  const stranger = { ...statements[0], recordId: 'rec-x', checkinId: 'ci-x' };
+  assert.match(verifyHostWord({ statement: stranger, room, ...parts }, { recordId: 'rec-x' }).reason, /not one of its room/);
+  // The room changed (one entry dropped): the challenge is no longer its hash.
+  assert.match(verifyHostWord({ ...w, room: { ...room, entries: [room.entries[1]] } }, expectFor(1)).reason, /room’s hash/);
+  // The sitting's statement names another time than its room.
+  assert.match(verifyHostWord({ ...w, statement: { ...w.statement, signedAt: '2026-10-06T15:41:00.000Z' } }, expectFor(1)).reason, /disagrees/);
+  assert.match(verifyHostWord({ ...w, room: { ...room, schema: 'nope' } }, expectFor(1)).reason, /not one/);
+});
+
+test('v1.10: a room word confirmed through the host’s account verifies under Wizzad’s published keys; its line says it covered the room', () => {
+  const { statements, room } = roomWord();
+  const pair = generateKeyPairSync('ed25519');
+  const spki = pair.publicKey.export({ type: 'spki', format: 'der' });
+  const keyId = createHash('sha256').update(spki).digest('hex').slice(0, 16);
+  const keys = { keys: [{ keyId, algorithm: 'Ed25519', publicKey: spki.toString('base64') }] };
+  const signature = nodeSign(null, Buffer.from(canonicalJson(room), 'utf8'), pair.privateKey).toString('base64url');
+  const att = { method: 'account', statement: statements[2], room, signedBy: { algorithm: 'Ed25519', keyId, signature } };
+  const r = verifyHostWord(att, expectFor(2), keys);
+  assert.equal(r.valid, true, r.reason);
+  assert.deepEqual(r.room, { sittings: 3 });
+  // Over the statement alone instead of the room, the signature does not hold.
+  const wrong = nodeSign(null, Buffer.from(canonicalJson(statements[2]), 'utf8'), pair.privateKey).toString('base64url');
+  assert.match(verifyHostWord({ ...att, signedBy: { ...att.signedBy, signature: wrong } }, expectFor(2), keys).reason, /does not hold/);
+  // A link to the school address does not carry a room.
+  assert.match(verifyHostWord({ ...att, method: 'email', email: { domain: 'example.edu', confirmedAt: 't' } }, expectFor(2), keys).reason, /passkey or through/);
+  const defense = { id: 'rec-3', attempt: 1, condition: 'supervised', supervised: { windowId: 'w9', host: statements[2].host, attestation: att } };
+  assert.match(hostWordLine({ path: 'record.defenses[0]', defense, word: att }, keys), /one word for the 3 sittings in the room · Wizzad’s signature/);
+});
+
+
+// Two sittings the platform's integration run sealed in one window and a host signed for in one passkey ceremony:
+// supervised.integration.test.ts writes them when HOST_ROOM_WORD_FIXTURE names the path.
+test('v1.10: a room word from the platform verifies on each record, under the one signature, each record holding only its own sitting', () => {
+  const { defenses } = fx('room-word.json');
+  assert.equal(defenses.length, 2);
+  const [a, b] = defenses;
+  for (const d of defenses) {
+    const r = verifyHostWord(d.supervised.attestation, d);
+    assert.equal(r.valid, true, r.reason);
+    assert.deepEqual(r.room, { sittings: 2 });
+    assert.equal(d.supervised.attestation.statement.recordId, d.id);
+    assert.match(hostWordLine({ path: 'record.defenses[0]', defense: d, word: d.supervised.attestation }), /one word for the 2 sittings in the room/);
+  }
+  assert.equal(a.supervised.attestation.assertion.signature, b.supervised.attestation.assertion.signature);
+  assert.deepEqual(a.supervised.attestation.room, b.supervised.attestation.room);
+  assert.equal(JSON.stringify(a).includes(b.id), false);
+  assert.deepEqual(verifyHostWord(b.supervised.attestation, b).exceptions, ['left_room']);
+  // One record's word carried onto the other is not that record's.
+  assert.equal(verifyHostWord(a.supervised.attestation, b).valid, false);
+});
+
+// Build 3 audit: a room word's statement is exactly its entry plus what the room fixes — nothing unsigned rides on it.
+test('v1.10: a sitting that carries a field its room did not sign is refused — at the top, or in host', () => {
+  const { defenses } = fx('room-word.json');
+  const d = defenses[0];
+  const att = d.supervised.attestation;
+  assert.equal(verifyHostWord(att, d).valid, true);
+  for (const statement of [{ ...att.statement, verifiedBy: 'Wizzad' }, { ...att.statement, host: { ...att.statement.host, title: 'Dean of Admissions' } }]) {
+    const r = verifyHostWord({ ...att, statement }, d);
+    assert.equal(r.valid, false);
+    assert.match(r.reason, /did not sign|disagrees/);
+  }
+});
+
+test('v1.10: a room past sixty sittings, or whose host has no organisation key, is not a room', () => {
+  const { wordFor, room } = roomWord();
+  const w = wordFor(0);
+  const many = { ...room, entries: Array.from({ length: 61 }, (_, i) => createHash('sha256').update(String(i)).digest('base64url')) };
+  assert.match(verifyHostWord({ ...w, room: many }, expectFor(0)).reason, /not one/);
+  const { organisation: _o, ...hostWithout } = room.host;
+  assert.match(verifyHostWord({ ...w, room: { ...room, host: hostWithout } }, expectFor(0)).reason, /not one/);
 });

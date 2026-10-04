@@ -36,6 +36,16 @@ test('canonical JSON ignores key order and whitespace — a re-serialised record
   assert.equal(verifyRecord({ ...record, payload: reordered }, keys).valid, true);
 });
 
+test('a "__proto__" key is part of the payload: kept in the canonical bytes, so adding one breaks the signature', () => {
+  assert.equal(canonicalJson(JSON.parse('{"__proto__":{"x":1},"a":1}')), '{"__proto__":{"x":1},"a":1}');
+  assert.notEqual(canonicalJson(JSON.parse('{"__proto__":{"x":1},"a":1}')), canonicalJson({ a: 1 }));
+  const s = signed({ schema: 'wizzad.proof/v1', recordId: 'r', record: {} });
+  assert.equal(verifyRecord(s.record, s.ring).valid, true);
+  const added = JSON.parse(JSON.stringify(s.record).replace('"recordId":"r"', '"__proto__":{"injected":true},"recordId":"r"'));
+  assert.equal(Object.keys(added.payload).includes('__proto__'), true);
+  assert.equal(verifyRecord(added, s.ring).valid, false);
+});
+
 test('one changed character in the payload, or in the signature, and the record is not valid', () => {
   const tampered = structuredClone(record);
   tampered.payload.record.defenses[0].results.checkedCorrect += 1;

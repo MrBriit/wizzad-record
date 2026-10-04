@@ -47,6 +47,12 @@ host     record.defenses[0] · Elena Marsh, Example College (example.edu) confir
 ```
 
 
+A host who watched a whole room may give one word for every sitting in it ([§4.4.4](PROFILE.md#444-one-word-for-the-room), v1.10): one signature over a room statement that names each sitting only by a hash. Each record carries the room and its own sitting's statement, and `check` checks that its sitting is one of the room's, then the signature over the room, and says how many sittings the word covered:
+
+```
+host     record.defenses[0] · Elena Marsh, Example College (example.edu) signed 2026-10-06T19:00:00.000Z · watched the whole sitting, though the student left the room · note: “Stepped out for a minute.” · one word for the 2 sittings in the room · key 2be1… · VALID
+```
+
 ## Check a standing
 
 A record may carry each piece's standing ([§4.6](PROFILE.md#46-the-standing)): what supervised sittings on that piece found, with its remote sittings beside them. `check` recomputes each one from the sittings the record carries — counting a supervised sitting only when its host's word holds — and prints one line per piece:
