@@ -109,6 +109,19 @@ export function standingOf(all, gain = PRACTICE_GAIN) {
   return { status, pending: null, supervised, remote, gap: { diff, adjusted, z, second }, keys };
 }
 
+/** v1.8: a standing's band — the share of credit across every sitting that counts, once three or more do (§4.6). */
+export const BAND_MIN_SITTINGS = 3;
+export const BAND_WORDS = { below_half: 'under half', half_to_three_quarters: 'between half and three quarters', three_quarters_up: 'three quarters or more' };
+export function bandOf(share) {
+  return share < 0.5 ? 'below_half' : share < 0.75 ? 'half_to_three_quarters' : 'three_quarters_up';
+}
+export function standingBand(p) {
+  const sittings = (p.supervised?.sittings ?? 0) + (p.remote?.sittings ?? 0);
+  const n = (p.supervised?.n ?? 0) + (p.remote?.n ?? 0);
+  const credit = (p.supervised?.credit ?? 0) + (p.remote?.credit ?? 0);
+  return { sittings, band: sittings >= BAND_MIN_SITTINGS && n > 0 ? bandOf(credit / n) : null };
+}
+
 /** The statuses a record may carry for a status the rules give: the same, or a milder one while unreviewed. */
 export function statusesAllowed(status) {
   if (status === 'not_verified') return ['not_verified', 'more_evidence', 'verified'];
@@ -176,5 +189,8 @@ export function standingLine(entry, defenses, keys = null) {
     r.remote ? `remote ${r.remote.credit} of ${r.remote.n} (${r.remote.sittings} sitting${r.remote.sittings === 1 ? '' : 's'})` : null,
   ].filter(Boolean).join(' · ');
   const head = `${entry.path} · ${st.title ?? '?'} · ${STATUS_WORDS[st.status] ?? st.status}`;
-  return r.valid ? `${head} · ${pools} · MATCHES its sittings` : `${head} · NOT VALID — ${r.reason}`;
+  // v1.8: the band, read from the pools just recomputed — never from anything the record says of it.
+  const b = r.valid ? standingBand(r) : null;
+  const band = b?.band ? ` · band: ${BAND_WORDS[b.band]} across ${b.sittings} sittings` : '';
+  return r.valid ? `${head} · ${pools}${band} · MATCHES its sittings` : `${head} · NOT VALID — ${r.reason}`;
 }

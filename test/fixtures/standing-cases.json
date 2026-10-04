@@ -543,5 +543,71 @@
         }
       }
     }
+  ],
+  "bands": [
+    {
+      "name": "two sittings: no band yet",
+      "supervised": {
+        "credit": 7,
+        "n": 10,
+        "sittings": 1
+      },
+      "remote": {
+        "credit": 9,
+        "n": 10,
+        "sittings": 1
+      },
+      "expect": {
+        "sittings": 2,
+        "band": null
+      }
+    },
+    {
+      "name": "three sittings at 23 of 30: three quarters or more",
+      "supervised": {
+        "credit": 7,
+        "n": 10,
+        "sittings": 1
+      },
+      "remote": {
+        "credit": 16,
+        "n": 20,
+        "sittings": 2
+      },
+      "expect": {
+        "sittings": 3,
+        "band": "three_quarters_up"
+      }
+    },
+    {
+      "name": "three remote sittings at exactly half",
+      "supervised": null,
+      "remote": {
+        "credit": 15,
+        "n": 30,
+        "sittings": 3
+      },
+      "expect": {
+        "sittings": 3,
+        "band": "half_to_three_quarters"
+      }
+    },
+    {
+      "name": "four sittings under half",
+      "supervised": {
+        "credit": 3.5,
+        "n": 20,
+        "sittings": 2
+      },
+      "remote": {
+        "credit": 6,
+        "n": 20,
+        "sittings": 2
+      },
+      "expect": {
+        "sittings": 4,
+        "band": "below_half"
+      }
+    }
   ]
 }

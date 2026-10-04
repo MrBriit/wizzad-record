@@ -68,6 +68,17 @@ review   record.defenses[2] · reviewed by Ama Owusu, Wizzad on 2026-10-02 · se
 The review is inside the signed record, so it is Wizzad's word that the person it names decided this — no more. A review that left the result as it was is not carried.
 
 
+## Read the graders' agreement
+
+Explanations are graded by two AI graders, or three where the deployment holds a third from another company, each blind to the others; where they differ they confer once. A record made since Standard v1.8 carries the council's counts on each sitting ([§4.4](PROFILE.md#44-part-iv-the-defense)), and `check` prints them:
+
+```
+graders  record.defenses[0] · three AI graders read 7 answers · agreed blind on 5 of 7, conferred on 2 and agreed on 7 of 7 after
+```
+
+Nothing is computed from it: it is a count the record carries, checked only for consistency (an answer conferred on was not unanimous blind; agreement cannot fall by conferring).
+
+
 ## Check a credential
 
 ```bash

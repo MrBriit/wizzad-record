@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash, generateKeyPairSync, sign as nodeSign } from 'node:crypto';
-import { canonicalJson, verifyStanding, standingsIn, standingLine, standingOfSittings, statusesAllowed, PRACTICE_GAIN } from '../src/index.js';
+import { canonicalJson, verifyStanding, standingsIn, standingLine, standingOfSittings, statusesAllowed, standingBand, PRACTICE_GAIN } from '../src/index.js';
 
 const CASES = JSON.parse(readFileSync(new URL('./fixtures/standing-cases.json', import.meta.url), 'utf8'));
 const res = (r = {}) => ({ checked: 0, checkedCorrect: 0, explained: 0, explainedFull: 0, explainedPartial: 0, episodic: 0, episodicAccounted: 0, history: 0, historyConnected: 0, ungraded: 0, late: 0, skipped: 0, ...r });
@@ -156,4 +156,13 @@ test('0.6.1: a piece renamed between sittings is one standing, titled as its new
   assert.equal(r.valid, true, r.reason);
   // Titled by the older name, it is not the record's standing.
   assert.match(verifyStanding({ ...standing, title: 'Untitled' }, renamed, keys).reason, /newest sitting carries \("Osmosis lab"\)/);
+});
+
+test('v1.8: the band, from the pools — the same answer as the platform, and printed only from three sittings', () => {
+  for (const c of CASES.bands) assert.deepEqual(standingBand(c), c.expect, c.name);
+  const line = standingLine({ path: 'p', standing: { title: 'Osmosis lab', defenses: [0, 1, 2], status: 'verified', supervised: { credit: 7, n: 10, sittings: 1 }, remote: { credit: 16, n: 20, sittings: 2 } } },
+    [supervised('rec-3', 'Osmosis lab', 7, 10, []), remote('rec-2', 'Osmosis lab', 8, 10), remote('rec-1', 'Osmosis lab', 8, 10)], keys);
+  assert.match(line, /band: three quarters or more across 3 sittings · MATCHES/);
+  const p = record();
+  assert.doesNotMatch(standingLine({ path: 'p', standing: p.record.standings[0] }, p.record.defenses, keys), /band:/);
 });

@@ -24,6 +24,7 @@ import { runNotebook } from '../src/run.js';
 import { hostWordsIn, hostWordLine, verifyHostWord } from '../src/host.js';
 import { standingsIn, standingLine, verifyStanding } from '../src/standing.js';
 import { reviewsIn, reviewLine, verifyReview } from '../src/review.js';
+import { councilsIn, councilLine, verifyCouncil } from '../src/council.js';
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { existsSync } from 'node:fs';
@@ -82,6 +83,10 @@ async function main() {
     const hosted = hostWordsIn(p);
     for (const e of hosted) console.log(`host     ${hostWordLine(e, ring)}`);
     const hostWordsHold = hosted.every((e) => !e.word || verifyHostWord(e.word, e.defense, ring).valid);
+    // The council of AI graders (§4.4, v1.8): how often they agreed, as the record carries it.
+    const councils = councilsIn(p);
+    for (const e of councils) console.log(`graders  ${councilLine(e)}`);
+    const councilsHold = councils.every((e) => verifyCouncil(e.council).valid);
     // A person's review of a sitting (§4.4.3): what it changed, as the record carries it.
     const reviews = reviewsIn(p);
     for (const e of reviews) console.log(`review   ${reviewLine(e, { recordValid: r.valid })}`);
@@ -91,7 +96,7 @@ async function main() {
     const standings = standingsIn(p);
     for (const e of standings) console.log(`standing ${standingLine(e, defenses, ring)}`);
     const standingsHold = standings.every((e) => verifyStanding(e.standing, defenses, ring).valid);
-    process.exit(r.valid && hostWordsHold && reviewsHold && standingsHold ? 0 : 1);
+    process.exit(r.valid && hostWordsHold && reviewsHold && councilsHold && standingsHold ? 0 : 1);
   }
   if (cmd === 'credential' && positional[0]) {
     const keysPath = flag('--keys');
