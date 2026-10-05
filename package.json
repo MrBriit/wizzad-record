@@ -1,6 +1,6 @@
 {
   "name": "wizzad-record",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Check a Wizzad study record, its Open Badges 3.0 credential, the files it names, its notebook re-run and a host’s signed word on a supervised sitting — without trusting Wizzad.",
   "type": "module",
   "license": "MIT",

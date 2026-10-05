@@ -6,7 +6,7 @@ export { fingerprintFile, fingerprintsIn, matchFingerprint } from './files.js';
 export { fetchFromLink, partsOfLink } from './fetch.js';
 export { readNotebook, submittedOutcomes, submittedOutcomesV2, submittedFor, CANON, runOutcomes, canonicalOutcomes, outcomesDigest, compareOutcomes, reproductionsIn, reproductionProblems, OUTPUT_CAP, BADGE } from './reproduce.js';
 export { runNotebook } from './run.js';
-export { standingBand, bandOf as standingBandOf, BAND_MIN_SITTINGS, BAND_WORDS, verifyStanding, standingsIn, standingLine, standingOf as standingOfSittings, creditOf, scoreOf, statusesAllowed, STATUS_WORDS as STANDING_STATUS_WORDS, STANDING_NOTES, PRACTICE_GAIN, MORE_EVIDENCE_Z, NOT_VERIFIED_Z, SUPERVISED_MINIMUM } from './standing.js';
+export { standingBand, bandOf as standingBandOf, BAND_MIN_SITTINGS, BAND_WORDS, verifyStanding, standingsIn, standingLine, standingOf as standingOfSittings, creditOf, scoreOf, statusesAllowed, STATUS_WORDS as STANDING_STATUS_WORDS, STANDING_NOTES, PRACTICE_GAIN, MORE_EVIDENCE_Z, NOT_VERIFIED_Z, SUPERVISED_MINIMUM, SUPERVISED_FLOOR } from './standing.js';
 export { verifyHostWord, hostWordsIn, hostWordLine, recordingRuleWords, wordMethod as hostWordMethod, challengeOf as hostChallengeOf, keyIdOfSpki, HOST_WORD_SCHEMA, HOST_ROOM_WORD_SCHEMA, roomEntryOf, entryHashOf } from './host.js';
 export { reviewsIn, verifyReview, reviewLine, REVIEW_OUTCOMES, REVIEW_ABOUT } from './review.js';
 export { councilsIn, verifyCouncil, councilLine } from './council.js';

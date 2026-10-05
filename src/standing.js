@@ -44,13 +44,17 @@ export const NOT_VERIFIED_Z = 3.1;
 export const INTEGRITY_EXCEPTIONS = ['left_room', 'other_device'];
 /** v1.11: the share of credit the counting supervised sittings must reach, pooled, for `verified` — half (§4.6). */
 export const SUPERVISED_MINIMUM = 0.5;
-/** The labels people read (v1.11). The codes keep their names for every record made before; no label says "Verified". */
+/** v1.12: the graded questions the counting supervised sittings must hold, pooled, before their share is read (§4.6). */
+export const SUPERVISED_FLOOR = 8;
+/** v1.12: the host's note that never stops a sitting counting, but whose sittings may be left out to reach the minimum. */
+export const FAULT_EXCEPTION = 'technical_fault';
+/** The labels people read (v1.11, v1.12). The codes keep their names for every record made before; no label says "Verified". */
 export const STATUS_WORDS = {
   not_yet_verified: 'Not yet confirmed',
   verified: 'Supervised sitting on record',
   awaiting_review: 'Awaiting review',
   more_evidence: 'More evidence requested',
-  not_verified: 'Not yet confirmed, after two tries',
+  not_verified: 'Rests on supervised sittings',
 };
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
@@ -94,9 +98,11 @@ export function supervisedCounts(s) {
  * The standing of one piece from its sittings `{ key, condition: 'remote'|'supervised', sealedAt, results, word?,
  * readerHosted?, setAside? }`, `sealedAt` being any key that orders them. A sitting in which no question counted is left
  * out, as is one a person's review set aside (v1.7). `minimum` (v1.11): the share the supervised pool must reach, or
- * null for a standing made before v1.11.
+ * null for a standing made before v1.11. `floor` (v1.12): the graded questions it must hold first, or null for a
+ * standing made before v1.12 — and with it, the minimum is also reached by the sittings whose host noted no technical
+ * fault, on their own.
  */
-export function standingOf(all, gain = PRACTICE_GAIN, minimum = null) {
+export function standingOf(all, gain = PRACTICE_GAIN, minimum = null, floor = null) {
   // v1.7: a sitting set aside by a person's review counts toward nothing.
   const sittings = all.filter((s) => s.setAside !== true && creditOf(s.results).n > 0);
   const counting = sittings.filter(supervisedCounts);
@@ -110,8 +116,13 @@ export function standingOf(all, gain = PRACTICE_GAIN, minimum = null) {
     const pending = any.length === 0 ? 'no_supervised' : admitted.some((s) => !s.word?.given) ? 'awaiting_word' : admitted.length === 0 ? 'reader_hosted' : 'exception';
     return { status: 'not_yet_verified', pending, supervised: null, remote, gap: null, keys };
   }
-  // v1.11: under the minimum, the supervised sittings confirm nothing yet; their numbers stay on the record.
-  if (minimum !== null && supervised.share < minimum) return { status: 'not_yet_verified', pending: 'below_minimum', supervised, remote, gap: null, keys };
+  // v1.12: too few graded questions to read a share from; their numbers stay on the record.
+  if (floor !== null && supervised.n < floor) return { status: 'not_yet_verified', pending: 'too_few_questions', supervised, remote, gap: null, keys };
+  // v1.11: under the minimum, the supervised sittings confirm nothing yet; their numbers stay on the record. v1.12: unless
+  // the sittings whose host noted no technical fault reach it on their own, with the floor's questions.
+  const clean = floor !== null ? pool(counting.filter((s) => !(s.word?.exceptions ?? []).includes(FAULT_EXCEPTION))) : null;
+  const cleanReaches = !!clean && clean.n >= floor && clean.share >= minimum;
+  if (minimum !== null && supervised.share < minimum && !cleanReaches) return { status: 'not_yet_verified', pending: 'below_minimum', supervised, remote, gap: null, keys };
   if (!remote) return { status: 'verified', pending: null, supervised, remote: null, gap: null, keys };
   const firstSup = Math.min(...counting.map((s) => s.sealedAt));
   const firstRem = Math.min(...remoteSittings.map((s) => s.sealedAt));
@@ -166,6 +177,10 @@ export function verifyStanding(standing, defenses, keys = null) {
   // v1.11: a standing that carries a minimum is read by it — and only the Standard's own: a record may not lower its bar.
   const v111 = standing.minimum !== undefined;
   if (v111 && standing.minimum !== SUPERVISED_MINIMUM) return fail(`its minimum (${standing.minimum}) is not the one the Standard sets (${SUPERVISED_MINIMUM})`);
+  // v1.12: a floor, only the Standard's own, and only beside the minimum it was made with.
+  const v112 = standing.floor !== undefined;
+  if (v112 && standing.floor !== SUPERVISED_FLOOR) return fail(`its floor (${standing.floor}) is not the one the Standard sets (${SUPERVISED_FLOOR})`);
+  if (v112 && !v111) return fail('it carries a floor (v1.12) without the minimum the same rules set');
   if (!v111 && standing.status === 'awaiting_review') return fail('Awaiting review is a status of the v1.11 rules, and this standing carries no minimum');
   const list = Array.isArray(defenses) ? defenses : [];
   if (standing.defenses.length === 0) return fail('names no defense');
@@ -190,13 +205,14 @@ export function verifyStanding(standing, defenses, keys = null) {
   // Titled as its newest named sitting (the lowest place: `defenses` is newest first) titles the piece.
   const newest = list[Math.min(...standing.defenses)];
   if (newest.title !== standing.title) return fail(`its title is not the one its newest sitting carries ("${newest.title}")`);
-  const s = standingOf(sittings, PRACTICE_GAIN, v111 ? SUPERVISED_MINIMUM : null);
+  const s = standingOf(sittings, PRACTICE_GAIN, v111 ? SUPERVISED_MINIMUM : null, v112 ? SUPERVISED_FLOOR : null);
   const pick = (p) => (p ? { credit: p.credit, n: p.n, sittings: p.sittings } : null);
   const out = { status: standing.status, supervised: pick(s.supervised), remote: pick(s.remote), gap: s.gap };
   if (!samePool(standing.supervised, out.supervised)) return { ...out, ...fail('its supervised credit is not what its sittings give') };
   if (!samePool(standing.remote, out.remote)) return { ...out, ...fail('its remote credit is not what its sittings give') };
   if (!statusesAllowed(s.status, v111).includes(standing.status)) {
-    const why = s.pending === 'below_minimum' && standing.status !== 'not_yet_verified' ? `its status needs the supervised sittings that count to reach ${SUPERVISED_MINIMUM * 100}% of their credit`
+    const why = s.pending === 'too_few_questions' && standing.status !== 'not_yet_verified' ? `its status needs at least ${SUPERVISED_FLOOR} graded questions in the supervised sittings that count`
+      : s.pending === 'below_minimum' && standing.status !== 'not_yet_verified' ? `its status needs the supervised sittings that count to reach ${SUPERVISED_MINIMUM * 100}% of their credit`
       : ['verified', 'more_evidence', 'not_verified', 'awaiting_review'].includes(standing.status) ? 'its status needs a supervised sitting that counts, and the gap its sittings give'
       : 'its status is not the one its sittings give';
     return { ...out, ...fail(why) };
@@ -205,9 +221,11 @@ export function verifyStanding(standing, defenses, keys = null) {
   const cleared = v111 && standing.status === 'verified' && (s.status === 'more_evidence' || s.status === 'not_verified');
   // A standing made before v1.11 keeps its `verified`; where the rules since would not give it, say which rule changed.
   let earlier = null;
-  if (!v111 && standing.status === 'verified') {
-    const now = standingOf(sittings, PRACTICE_GAIN, SUPERVISED_MINIMUM);
-    earlier = now.pending === 'below_minimum' ? 'below_minimum' : (now.status === 'more_evidence' || now.status === 'not_verified') ? 'unreviewed_gap' : null;
+  if (!v112 && standing.status === 'verified') {
+    const now = standingOf(sittings, PRACTICE_GAIN, SUPERVISED_MINIMUM, SUPERVISED_FLOOR);
+    earlier = now.pending === 'too_few_questions' ? 'too_few_questions'
+      : v111 ? null
+      : now.pending === 'below_minimum' ? 'below_minimum' : (now.status === 'more_evidence' || now.status === 'not_verified') ? 'unreviewed_gap' : null;
   }
   return { valid: true, ...out, cleared, earlier };
 }
@@ -217,6 +235,7 @@ export const STANDING_NOTES = {
   cleared: 'a person at Wizzad looked at how the remote and supervised results compare and let the supervised result stand (their word)',
   below_minimum: 'made before v1.11, when any supervised sitting that counted read so; under v1.11 these, under half their credit, read Not yet confirmed',
   unreviewed_gap: 'made before v1.11, when this status was also given where no person had looked at how the remote and supervised results compare; under v1.11 it reads Awaiting review',
+  too_few_questions: `made before v1.12, when a standing was read from any number of graded questions; under v1.12, fewer than ${SUPERVISED_FLOOR} read Not yet confirmed`,
 };
 
 /** One standing in one line, for the eye. */

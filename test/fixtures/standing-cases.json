@@ -911,6 +911,209 @@
           "n": 10
         }
       }
+    },
+    {
+      "name": "v1.12: one question of two graded — fewer than the floor, nothing is read",
+      "minimum": 0.5,
+      "floor": 8,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 2,
+            "checkedCorrect": 1
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "too_few_questions",
+        "z": null,
+        "supervised": {
+          "credit": 1,
+          "n": 2
+        }
+      }
+    },
+    {
+      "name": "v1.12: two short sittings reach the floor together",
+      "minimum": 0.5,
+      "floor": 8,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": null,
+        "supervised": {
+          "credit": 6,
+          "n": 8
+        }
+      }
+    },
+    {
+      "name": "v1.12: a technical fault — 7 of 20 over both, but the sitting without one reaches half on its own",
+      "minimum": 0.5,
+      "floor": 8,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 6
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 1
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "technical_fault"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": null,
+        "supervised": {
+          "credit": 7,
+          "n": 20
+        }
+      }
+    },
+    {
+      "name": "v1.12: the sittings without a fault must hold the floor's questions themselves",
+      "minimum": 0.5,
+      "floor": 8,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 0
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "technical_fault"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "below_minimum",
+        "z": null,
+        "supervised": {
+          "credit": 3,
+          "n": 14
+        }
+      }
+    },
+    {
+      "name": "v1.12: the same fault made under v1.11 (no floor) — under half",
+      "minimum": 0.5,
+      "floor": null,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 6
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 1
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "technical_fault"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "below_minimum",
+        "z": null,
+        "supervised": {
+          "credit": 7,
+          "n": 20
+        }
+      }
     }
   ],
   "bands": [

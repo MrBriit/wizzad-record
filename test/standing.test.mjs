@@ -10,7 +10,7 @@ const res = (r = {}) => ({ checked: 0, checkedCorrect: 0, explained: 0, explaine
 test('the worked standings: the same answer as the platform', () => {
   assert.equal(PRACTICE_GAIN, CASES.practiceGain);
   for (const c of CASES.cases) {
-    const s = standingOfSittings(c.sittings.map((x) => ({ ...x, results: res(x.results) })), PRACTICE_GAIN, c.minimum ?? null);
+    const s = standingOfSittings(c.sittings.map((x) => ({ ...x, results: res(x.results) })), PRACTICE_GAIN, c.minimum ?? null, c.floor ?? null);
     assert.equal(s.status, c.expect.status, c.name);
     assert.equal(s.pending, c.expect.pending, c.name);
     if ('z' in c.expect) assert.equal(s.gap === null ? null : Math.round(s.gap.z * 100) / 100, c.expect.z, c.name);
@@ -229,4 +229,30 @@ test('v1.11 audit: a person’s clear is said to be their word; a standing made 
   const low = [supervised('rec-3', 'Osmosis lab', 3, 10, []), remote('rec-1', 'Osmosis lab', 10, 10)];
   const lowSt = { title: 'Osmosis lab', defenses: [0, 1], supervised: { credit: 3, n: 10, sittings: 1 }, remote: { credit: 10, n: 10, sittings: 1 }, minimum: 0.5 };
   for (const status of ['verified', 'awaiting_review', 'more_evidence']) assert.match(verifyStanding({ ...lowSt, status }, low, keys).reason, /reach 50% of their credit/, status);
+});
+
+test('v1.12: a standing with the floor is read by it — too few graded questions read nothing; a technical fault cannot pull the rest under half', () => {
+  // Newest first: a supervised sitting at 1 of 10 whose host noted a technical fault, after one at 6 of 10 without.
+  const defenses = [supervised('rec-3', 'Osmosis lab', 1, 10, ['technical_fault']), supervised('rec-2', 'Osmosis lab', 6, 10, [])];
+  const st = { title: 'Osmosis lab', defenses: [0, 1], supervised: { credit: 7, n: 20, sittings: 2 }, remote: null, minimum: 0.5 };
+  // Made under v1.12: 7 of 20 overall, but the sitting without the fault reaches half on its own.
+  const v112 = verifyStanding({ ...st, status: 'verified', floor: 8 }, defenses, keys);
+  assert.equal(v112.valid, true, v112.reason);
+  // The same standing made under v1.11 (no floor) is under half.
+  assert.match(verifyStanding({ ...st, status: 'verified' }, defenses, keys).reason, /reach 50% of their credit/);
+  assert.equal(verifyStanding({ ...st, status: 'not_yet_verified' }, defenses, keys).valid, true);
+  // Only the Standard's floor, and only beside its minimum.
+  assert.match(verifyStanding({ ...st, status: 'verified', floor: 2 }, defenses, keys).reason, /floor \(2\) is not the one the Standard sets \(8\)/);
+  assert.match(verifyStanding({ title: st.title, defenses: st.defenses, supervised: st.supervised, remote: null, status: 'verified', floor: 8 }, defenses, keys).reason, /without the minimum/);
+  // Under the floor: nothing but Not yet confirmed, for the floor's own reason.
+  const few = [supervised('rec-3', 'Osmosis lab', 1, 2, [])];
+  const fewSt = { title: 'Osmosis lab', defenses: [0], supervised: { credit: 1, n: 2, sittings: 1 }, remote: null, minimum: 0.5, floor: 8 };
+  assert.equal(verifyStanding({ ...fewSt, status: 'not_yet_verified' }, few, keys).valid, true);
+  for (const status of ['verified', 'awaiting_review']) assert.match(verifyStanding({ ...fewSt, status }, few, keys).reason, /at least 8 graded questions/, status);
+  // A v1.11 standing whose `verified` the v1.12 rules would not give says so beside it.
+  const { floor: _f, ...v111Few } = fewSt;
+  const before = verifyStanding({ ...v111Few, status: 'verified' }, few, keys);
+  assert.deepEqual([before.valid, before.earlier], [true, 'too_few_questions']);
+  assert.ok(standingLine({ path: 'p', standing: { ...v111Few, status: 'verified' } }, few, keys).includes(` · ${STANDING_NOTES.too_few_questions} · MATCHES`));
+  for (const note of Object.values(STANDING_NOTES)) assert.doesNotMatch(note, /\bgap\b|Verified/);
 });
