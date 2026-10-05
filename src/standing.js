@@ -1,21 +1,28 @@
 /**
- * A piece's STANDING (the Defended Work Standard v1.5, §4.6; v1.7 for reviews), recomputed from a record alone.
+ * A piece's STANDING (the Defended Work Standard v1.5, §4.6; v1.7 for reviews; v1.11 for the minimum and Awaiting
+ * review), recomputed from a record alone.
  *
  * A record carries, for each piece, the places of its sittings in `record.defenses`, the credit it pooled from them,
  * and a status. This recomputes the pools from those sittings' own `results`, counts a supervised sitting only when its
  * host's word holds (src/host.js) and names no exception touching who did the work, reads which condition came first
  * from the order of `defenses` (newest first), and checks the status is one the rules allow:
  *
- *   - Not yet verified — no supervised sitting counts.
- *   - Verified — at least one counts, and no request for more evidence is open.
- *   - More evidence requested — one counts, and the remote share is more than 2.3 standard errors above it.
- *   - Not yet verified, after two tries — two or more count, and the gap stays above 3.1.
+ *   - `not_yet_verified`, Not yet confirmed — no supervised sitting counts; or (v1.11) the ones that count earned under
+ *     the standing's `minimum` share of their credit, pooled.
+ *   - `verified`, Supervised sitting on record — at least one counts (v1.11: reaching the minimum), and no gap is open.
+ *   - `more_evidence`, More evidence requested — one counts, and the remote share is more than 2.3 standard errors above it.
+ *   - `not_verified`, Not yet confirmed, after two tries — two or more count, and the gap stays above 3.1.
+ *   - `awaiting_review`, Awaiting review (v1.11) — the rules give a gap status no person at Wizzad has reviewed yet.
  *
  * A gap status reaches a student only once a person at Wizzad has reviewed it, so a record may carry a milder status
- * than the rules give (Verified in place of either gap status; More evidence requested in place of the second) — never
- * a harsher one, and never Verified where no supervised sitting counts. This checks exactly that. Its line prints the
- * pooled credit, not the gap, and never a status a review has not released: shadow mode withholds the label, not the
- * numbers, which are in the record for anyone to read (§4.6).
+ * than the rules give: More evidence requested in place of the second gap status, or `verified` (before v1.11, what an
+ * unreviewed gap showed; since, what a person releases when the supervised result stands), or (v1.11) Awaiting review —
+ * never a harsher one, and never `verified` where no supervised sitting counts or (v1.11) where it is under the minimum.
+ * This checks exactly that. Its line prints the pooled credit, not the gap, and never a status a review has not
+ * released: shadow mode withholds the label, not the numbers, which are in the record for anyone to read (§4.6).
+ *
+ * A standing made under v1.11 carries `minimum`, the share its supervised pool had to reach: the Standard's own value,
+ * SUPERVISED_MINIMUM, or the standing is refused. A standing without it was made before and is read by the rules then.
  *
  * A piece renamed between sittings is still one piece: the standing is titled as its NEWEST named sitting titles it,
  * and its older sittings may carry an earlier title (0.6.1; 0.6.0 wrongly refused them).
@@ -35,11 +42,15 @@ export const MORE_EVIDENCE_Z = 2.3;
 export const NOT_VERIFIED_Z = 3.1;
 /** The host's exceptions that keep a supervised sitting from counting. */
 export const INTEGRITY_EXCEPTIONS = ['left_room', 'other_device'];
+/** v1.11: the share of credit the counting supervised sittings must reach, pooled, for `verified` — half (§4.6). */
+export const SUPERVISED_MINIMUM = 0.5;
+/** The labels people read (v1.11). The codes keep their names for every record made before; no label says "Verified". */
 export const STATUS_WORDS = {
-  not_yet_verified: 'Not yet verified',
-  verified: 'Verified',
+  not_yet_verified: 'Not yet confirmed',
+  verified: 'Supervised sitting on record',
+  awaiting_review: 'Awaiting review',
   more_evidence: 'More evidence requested',
-  not_verified: 'Not yet verified, after two tries',
+  not_verified: 'Not yet confirmed, after two tries',
 };
 
 const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
@@ -82,9 +93,10 @@ export function supervisedCounts(s) {
 /**
  * The standing of one piece from its sittings `{ key, condition: 'remote'|'supervised', sealedAt, results, word?,
  * readerHosted?, setAside? }`, `sealedAt` being any key that orders them. A sitting in which no question counted is left
- * out, as is one a person's review set aside (v1.7).
+ * out, as is one a person's review set aside (v1.7). `minimum` (v1.11): the share the supervised pool must reach, or
+ * null for a standing made before v1.11.
  */
-export function standingOf(all, gain = PRACTICE_GAIN) {
+export function standingOf(all, gain = PRACTICE_GAIN, minimum = null) {
   // v1.7: a sitting set aside by a person's review counts toward nothing.
   const sittings = all.filter((s) => s.setAside !== true && creditOf(s.results).n > 0);
   const counting = sittings.filter(supervisedCounts);
@@ -98,6 +110,8 @@ export function standingOf(all, gain = PRACTICE_GAIN) {
     const pending = any.length === 0 ? 'no_supervised' : admitted.some((s) => !s.word?.given) ? 'awaiting_word' : admitted.length === 0 ? 'reader_hosted' : 'exception';
     return { status: 'not_yet_verified', pending, supervised: null, remote, gap: null, keys };
   }
+  // v1.11: under the minimum, the supervised sittings confirm nothing yet; their numbers stay on the record.
+  if (minimum !== null && supervised.share < minimum) return { status: 'not_yet_verified', pending: 'below_minimum', supervised, remote, gap: null, keys };
   if (!remote) return { status: 'verified', pending: null, supervised, remote: null, gap: null, keys };
   const firstSup = Math.min(...counting.map((s) => s.sealedAt));
   const firstRem = Math.min(...remoteSittings.map((s) => s.sealedAt));
@@ -122,10 +136,14 @@ export function standingBand(p) {
   return { sittings, band: sittings >= BAND_MIN_SITTINGS && n > 0 ? bandOf(credit / n) : null };
 }
 
-/** The statuses a record may carry for a status the rules give: the same, or a milder one while unreviewed. */
-export function statusesAllowed(status) {
-  if (status === 'not_verified') return ['not_verified', 'more_evidence', 'verified'];
-  if (status === 'more_evidence') return ['more_evidence', 'verified'];
+/**
+ * The statuses a record may carry for a status the rules give: the same, or a milder one a review allows — and, on a
+ * standing made under v1.11 (`v111`), Awaiting review in place of a gap status no person has reviewed.
+ */
+export function statusesAllowed(status, v111 = false) {
+  const review = v111 ? ['awaiting_review'] : [];
+  if (status === 'not_verified') return ['not_verified', 'more_evidence', 'verified', ...review];
+  if (status === 'more_evidence') return ['more_evidence', 'verified', ...review];
   return [status];
 }
 
@@ -145,6 +163,10 @@ const samePool = (a, b) => (a === null || a === undefined) ? (b === null) : (!!b
 export function verifyStanding(standing, defenses, keys = null) {
   const fail = (reason) => ({ valid: false, reason });
   if (!standing || typeof standing !== 'object' || typeof standing.title !== 'string' || !Array.isArray(standing.defenses) || !STATUS_WORDS[standing.status]) return fail('not a standing');
+  // v1.11: a standing that carries a minimum is read by it — and only the Standard's own: a record may not lower its bar.
+  const v111 = standing.minimum !== undefined;
+  if (v111 && standing.minimum !== SUPERVISED_MINIMUM) return fail(`its minimum (${standing.minimum}) is not the one the Standard sets (${SUPERVISED_MINIMUM})`);
+  if (!v111 && standing.status === 'awaiting_review') return fail('Awaiting review is a status of the v1.11 rules, and this standing carries no minimum');
   const list = Array.isArray(defenses) ? defenses : [];
   if (standing.defenses.length === 0) return fail('names no defense');
   if (new Set(standing.defenses).size !== standing.defenses.length) return fail('names a defense twice');
@@ -168,16 +190,34 @@ export function verifyStanding(standing, defenses, keys = null) {
   // Titled as its newest named sitting (the lowest place: `defenses` is newest first) titles the piece.
   const newest = list[Math.min(...standing.defenses)];
   if (newest.title !== standing.title) return fail(`its title is not the one its newest sitting carries ("${newest.title}")`);
-  const s = standingOf(sittings);
+  const s = standingOf(sittings, PRACTICE_GAIN, v111 ? SUPERVISED_MINIMUM : null);
   const pick = (p) => (p ? { credit: p.credit, n: p.n, sittings: p.sittings } : null);
   const out = { status: standing.status, supervised: pick(s.supervised), remote: pick(s.remote), gap: s.gap };
   if (!samePool(standing.supervised, out.supervised)) return { ...out, ...fail('its supervised credit is not what its sittings give') };
   if (!samePool(standing.remote, out.remote)) return { ...out, ...fail('its remote credit is not what its sittings give') };
-  if (!statusesAllowed(s.status).includes(standing.status)) {
-    return { ...out, ...fail(standing.status === 'verified' || standing.status === 'more_evidence' || standing.status === 'not_verified' ? 'its status needs a supervised sitting that counts, and the gap its sittings give' : 'its status is not the one its sittings give') };
+  if (!statusesAllowed(s.status, v111).includes(standing.status)) {
+    const why = s.pending === 'below_minimum' && standing.status !== 'not_yet_verified' ? `its status needs the supervised sittings that count to reach ${SUPERVISED_MINIMUM * 100}% of their credit`
+      : ['verified', 'more_evidence', 'not_verified', 'awaiting_review'].includes(standing.status) ? 'its status needs a supervised sitting that counts, and the gap its sittings give'
+      : 'its status is not the one its sittings give';
+    return { ...out, ...fail(why) };
   }
-  return { valid: true, ...out };
+  // v1.11: `verified` where the rules give a gap is a person's clear — Wizzad's word, not the rules' reading (§4.6).
+  const cleared = v111 && standing.status === 'verified' && (s.status === 'more_evidence' || s.status === 'not_verified');
+  // A standing made before v1.11 keeps its `verified`; where the rules since would not give it, say which rule changed.
+  let earlier = null;
+  if (!v111 && standing.status === 'verified') {
+    const now = standingOf(sittings, PRACTICE_GAIN, SUPERVISED_MINIMUM);
+    earlier = now.pending === 'below_minimum' ? 'below_minimum' : (now.status === 'more_evidence' || now.status === 'not_verified') ? 'unreviewed_gap' : null;
+  }
+  return { valid: true, ...out, cleared, earlier };
 }
+
+/** What `standingLine` says beside a standing a person cleared, or one made before v1.11 that the rules since read otherwise. */
+export const STANDING_NOTES = {
+  cleared: 'a person at Wizzad looked at how the remote and supervised results compare and let the supervised result stand (their word)',
+  below_minimum: 'made before v1.11, when any supervised sitting that counted read so; under v1.11 these, under half their credit, read Not yet confirmed',
+  unreviewed_gap: 'made before v1.11, when this status was also given where no person had looked at how the remote and supervised results compare; under v1.11 it reads Awaiting review',
+};
 
 /** One standing in one line, for the eye. */
 export function standingLine(entry, defenses, keys = null) {
@@ -192,5 +232,6 @@ export function standingLine(entry, defenses, keys = null) {
   // v1.8: the band, read from the pools just recomputed — never from anything the record says of it.
   const b = r.valid ? standingBand(r) : null;
   const band = b?.band ? ` · band: ${BAND_WORDS[b.band]} across ${b.sittings} sittings` : '';
-  return r.valid ? `${head} · ${pools}${band} · MATCHES its sittings` : `${head} · NOT VALID — ${r.reason}`;
+  const note = r.valid ? (r.cleared ? ` · ${STANDING_NOTES.cleared}` : r.earlier ? ` · ${STANDING_NOTES[r.earlier]}` : '') : '';
+  return r.valid ? `${head} · ${pools}${band}${note} · MATCHES its sittings` : `${head} · NOT VALID — ${r.reason}`;
 }

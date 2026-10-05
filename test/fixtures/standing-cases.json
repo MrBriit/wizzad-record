@@ -1,5 +1,5 @@
 {
-  "about": "Worked standings, one answer for the platform (src/lib/defend/standing-core.ts) and wizzad-record (src/standing.js). Each sitting: condition, sealedAt (ms), results (the record's own counts), and for a supervised sitting the host's word as given or not and its exceptions. Expected: status before review, which sittings pooled, and the gap in standard errors to two places.",
+  "about": "Worked standings, one answer for the platform (src/lib/defend/standing-core.ts) and wizzad-record (src/standing.js). Each sitting: condition, sealedAt (ms), results (the record's own counts), and for a supervised sitting the host's word as given or not and its exceptions. Expected: status before review, which sittings pooled, and the gap in standard errors to two places. A case with \"minimum\" is read by the v1.11 rules (the supervised pool must reach that share of its credit for `verified`); a case without it, by the rules before v1.11.",
   "practiceGain": 0.06,
   "cases": [
     {
@@ -540,6 +540,375 @@
           "remote": [
             0
           ]
+        }
+      }
+    },
+    {
+      "name": "v1.11: one supervised sitting at 3 of 10, under the minimum — on the record with its numbers, not yet confirmed",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "below_minimum",
+        "z": null,
+        "supervised": {
+          "credit": 3,
+          "n": 10
+        }
+      }
+    },
+    {
+      "name": "v1.11: a supervised sitting at exactly half reaches the minimum — a supervised sitting on record",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 5
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": null,
+        "supervised": {
+          "credit": 5,
+          "n": 10
+        }
+      }
+    },
+    {
+      "name": "v1.11: the old case of remote far above one supervised sitting — under the minimum, so no gap is read",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2000,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "below_minimum",
+        "z": null
+      }
+    },
+    {
+      "name": "v1.11: a supervised result at half with remote far above it — the rules give more evidence (Awaiting review until a person releases it)",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          }
+        },
+        {
+          "key": 1,
+          "condition": "remote",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          }
+        },
+        {
+          "key": 2,
+          "condition": "remote",
+          "sealedAt": 3,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          }
+        },
+        {
+          "key": 3,
+          "condition": "supervised",
+          "sealedAt": 4,
+          "results": {
+            "checked": 12,
+            "checkedCorrect": 6
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "more_evidence",
+        "pending": null,
+        "z": 3.83,
+        "second": "supervised",
+        "supervised": {
+          "credit": 6,
+          "n": 12
+        }
+      }
+    },
+    {
+      "name": "v1.11 audit: half credits pooled to exactly half — a partial explanation counts a half — stands as on record",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 2,
+            "explained": 2,
+            "explainedPartial": 2
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 4,
+            "checkedCorrect": 2
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "verified",
+        "pending": null,
+        "z": null,
+        "supervised": {
+          "credit": 5,
+          "n": 10
+        }
+      }
+    },
+    {
+      "name": "v1.11 audit: a set-aside sitting and a reader-hosted one count toward nothing — the one that counts is under half",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "supervised",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 9
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          },
+          "setAside": true
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          },
+          "readerHosted": true
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 3,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 3
+          },
+          "word": {
+            "given": true,
+            "exceptions": []
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "below_minimum",
+        "z": null,
+        "supervised": {
+          "credit": 3,
+          "n": 10
+        },
+        "keys": {
+          "supervised": [
+            2
+          ],
+          "remote": []
+        }
+      }
+    },
+    {
+      "name": "v1.11 audit: a high sitting whose host noted the student left the room does not count; one with a technical fault does, and is under half",
+      "minimum": 0.5,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 9
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "left_room"
+            ]
+          }
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 3,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 4
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "technical_fault"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "not_yet_verified",
+        "pending": "below_minimum",
+        "z": null,
+        "supervised": {
+          "credit": 4,
+          "n": 10
+        },
+        "remote": {
+          "credit": 9,
+          "n": 10
+        },
+        "keys": {
+          "supervised": [
+            2
+          ],
+          "remote": [
+            0
+          ]
+        }
+      }
+    },
+    {
+      "name": "v1.11 audit: the same sittings made before v1.11 (no minimum) — the counted one gives the gap read",
+      "minimum": null,
+      "sittings": [
+        {
+          "key": 0,
+          "condition": "remote",
+          "sealedAt": 1,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 9
+          }
+        },
+        {
+          "key": 1,
+          "condition": "supervised",
+          "sealedAt": 2,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 10
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "left_room"
+            ]
+          }
+        },
+        {
+          "key": 2,
+          "condition": "supervised",
+          "sealedAt": 3,
+          "results": {
+            "checked": 10,
+            "checkedCorrect": 4
+          },
+          "word": {
+            "given": true,
+            "exceptions": [
+              "technical_fault"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "status": "more_evidence",
+        "pending": null,
+        "supervised": {
+          "credit": 4,
+          "n": 10
         }
       }
     }
