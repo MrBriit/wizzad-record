@@ -1,7 +1,7 @@
 # wizzad-record
 
 
-**NB: A new version of this standard is being work on and will be released soon!!**
+**NB: A new version of this standard is being worked on and will be released soon!!**
 
 Check a [Wizzad](https://wizzad.ai) study record — its signature, its Open Badges 3.0 credential, and the files it names — **without trusting Wizzad**. No Wizzad code, no Wizzad server in the loop: the record and the public key are documents anyone can download, and this checks them with standard cryptography.
 
