@@ -1,5 +1,8 @@
 # wizzad-record
 
+
+**NB: A new version of this standard is being work on and will be released soon!!**
+
 Check a [Wizzad](https://wizzad.ai) study record — its signature, its Open Badges 3.0 credential, and the files it names — **without trusting Wizzad**. No Wizzad code, no Wizzad server in the loop: the record and the public key are documents anyone can download, and this checks them with standard cryptography.
 
 If you are the person reading a record, start with **[What a Wizzad record is](https://mrbriit.github.io/wizzad-record/web/record.html)** — plain words on what it tells you, what it does not, and what *valid* means.
